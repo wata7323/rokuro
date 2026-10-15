@@ -614,7 +614,10 @@ function audioInit(){
   const c=new AC();AU.ctx=c;
   const comp=c.createDynamicsCompressor();
   comp.threshold.value=-16;comp.knee.value=12;comp.ratio.value=4;comp.attack.value=0.005;comp.release.value=0.25;
-  comp.connect(c.destination);
+  // 最後段のリミッター：重なっても波形の上限を超えない
+  const lim=c.createDynamicsCompressor();
+  lim.threshold.value=-4;lim.knee.value=0;lim.ratio.value=20;lim.attack.value=0.001;lim.release.value=0.12;
+  comp.connect(lim);lim.connect(c.destination);AU.lim=lim;
   const master=c.createGain();master.gain.value=0.9;master.connect(comp);
   const warm=c.createBiquadFilter();warm.type='lowshelf';warm.frequency.value=140;warm.gain.value=4;warm.connect(master);
   AU.dry=warm;
@@ -663,12 +666,20 @@ function audioInit(){
   AU.rg=rg;
   AU.m={mg,mlp,rlp,o1,o2,o3,bp,jg,o4,o4g,lfo,lfg,clayBp,clayGain};
 }
+// AudioParam の更新：前回とほぼ同じ値なら出し直さない（スマホで予定が積み重なって重くなるのを防ぐ）
+function setP(p,v,t,tc){
+  const o=p.__v;
+  if(o!==undefined&&Math.abs(v-o)<=Math.max(Math.abs(o)*0.015,0.0005))return;
+  p.__v=v;p.setTargetAtTime(v,t,tc);
+}
 function audioClay(act,rpmF,hFrac){
   if(!AU.ctx||!AU.m)return;
   const t=AU.ctx.currentTime,m=AU.m,a=clamp(act,0,1);
+  setP(m.clayGain.gain,a>0.02?0.08+a*0.42:0,t,a>0.02?0.03:0.05);
+  // 音色の揺れは毎秒20回まで
+  if(t-(AU.clayT||0)<0.05)return;AU.clayT=t;
   const f=350+1050*clamp(0.45*hFrac+0.4*rpmF+0.25*a,0,1)*(0.9+Math.random()*0.2);
-  m.clayBp.frequency.setTargetAtTime(f,t,0.04);
-  m.clayGain.gain.setTargetAtTime(a>0.02?0.08+a*0.42:0,t,a>0.02?0.03:0.05);
+  setP(m.clayBp.frequency,f,t,0.04);
 }
 // 鑑定の溜めの間は残響を絞る
 function audioDuck(on){
@@ -679,18 +690,18 @@ function audioMotor(rpmF,on,wob){
   if(!AU.ctx||!AU.m)return;
   const t=AU.ctx.currentTime,m=AU.m;
   const f=36+Math.pow(rpmF,1.3)*240;
-  m.o1.frequency.setTargetAtTime(f,t,0.12);
-  m.o2.frequency.setTargetAtTime(f*2,t,0.12);
-  m.o3.frequency.setTargetAtTime(f/2,t,0.12);
-  m.rlp.frequency.setTargetAtTime(110+rpmF*900,t,0.15);
-  m.mlp.frequency.setTargetAtTime(380+rpmF*2200,t,0.15);
-  m.mg.gain.setTargetAtTime(on?0.2+rpmF*0.14:0,t,0.18);
-  m.lfg.gain.setTargetAtTime(on?0.03+wob*0.08:0,t,0.15);
-  m.lfo.frequency.setTargetAtTime(2+rpmF*14+wob*12,t,0.15);
-  m.bp.frequency.setTargetAtTime(260+rpmF*2600,t,0.15);
-  m.jg.gain.setTargetAtTime(on?Math.pow(rpmF,2)*0.24:0,t,0.15);
-  m.o4.frequency.setTargetAtTime(300+rpmF*rpmF*2400,t,0.15);
-  m.o4g.gain.setTargetAtTime(on?rpmF*rpmF*0.018:0,t,0.15);
+  setP(m.o1.frequency,f,t,0.12);
+  setP(m.o2.frequency,f*2,t,0.12);
+  setP(m.o3.frequency,f/2,t,0.12);
+  setP(m.rlp.frequency,110+rpmF*900,t,0.15);
+  setP(m.mlp.frequency,380+rpmF*2200,t,0.15);
+  setP(m.mg.gain,on?0.2+rpmF*0.14:0,t,0.18);
+  setP(m.lfg.gain,on?0.03+wob*0.08:0,t,0.15);
+  setP(m.lfo.frequency,2+rpmF*14+wob*12,t,0.15);
+  setP(m.bp.frequency,260+rpmF*2600,t,0.15);
+  setP(m.jg.gain,on?Math.pow(rpmF,2)*0.24:0,t,0.15);
+  setP(m.o4.frequency,300+rpmF*rpmF*2400,t,0.15);
+  setP(m.o4g.gain,on?rpmF*rpmF*0.018:0,t,0.15);
 }
 const sfx={
   out(node,send){
@@ -732,11 +743,12 @@ const sfx={
     });
   },
   coin(lv){
+    const c=AU.ctx;if(!c||c.currentTime-(AU.coinT||-1)<0.1)return;AU.coinT=c.currentTime;
     const scale=[0,2,5,7,9];
     const idx=Math.max(0,Math.floor(lv*2.2));
     const n=scale[idx%5]+12*Math.floor(idx/5);
     const f=Math.min(2400,262*Math.pow(2,n/12));
-    this.bell(f,1.1,0.07,0,0.55);
+    [[1,1,1],[2.756,0.45,0.6],[5.404,0.22,0.35],[8.933,0.1,0.2]].forEach(p=>this.tone(f*p[0],1.1*p[2],0.095*p[1],'sine',0,0,0.55,0.003));
   },
   crash(){
     this.tone(110,0.9,0.9,'sine',0,30,0.35,0.003);
