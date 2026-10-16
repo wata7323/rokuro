@@ -1,13 +1,14 @@
+// Cloudflare Workers の設定（GitHub から自動で公開されるときに使われる）
 {
+  // ↓ Cloudflare のダッシュボードに表示されている Worker の名前と同じにする
   "name": "rokuro",
-  "compatibility_date": "2026-10-01",
-  "assets": {
-    "directory": "./"
+  "main": "worker.js",
+  "compatibility_date": "2025-09-01",
+  // index.html・og/・k/ などをそのまま配信する（.assetsignore に書いたものは配信しない）
+  "assets": { "directory": ".", "binding": "ASSETS" },
+  // 番付とプレイ数の保存先（Durable Object。無料プランで使える SQLite 版）。ダッシュボードでの作成は不要
+  "durable_objects": {
+    "bindings": [{ "name": "BOARD", "class_name": "Board" }]
   },
-  // アカウント名が入るURL（workers.dev / プレビューURL）は公開しない
-  "workers_dev": false,
-  "preview_urls": false,
-  "routes": [
-    { "pattern": "rokuro.watasuru.com", "custom_domain": true }
-  ]
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Board"] }]
 }

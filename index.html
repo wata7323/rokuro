@@ -98,12 +98,16 @@ body.sing{--shippo:none;--paper:#121110;--ink:#f1ece4;--sub:#a49b8f;--line:rgba(
 #rsbtn{position:relative;width:44px;height:44px;border:0;background:transparent;color:var(--ink);padding:8px;cursor:pointer;touch-action:manipulation;display:none;pointer-events:auto}
 #rsbtn svg{width:28px;height:28px;display:block}
 #rsbtn:active{color:var(--shu)}
+#sbtn{position:relative;width:44px;height:44px;border:0;background:transparent;color:var(--ink);padding:10px;cursor:pointer;touch-action:manipulation;pointer-events:auto}
+#sbtn svg{width:24px;height:24px;display:block}
+#sbtn .w{display:block}#sbtn .x{display:none}
+#sbtn.off{color:var(--sub)}#sbtn.off .w{display:none}#sbtn.off .x{display:block}
 #zbtn i,#zbtn2 i{position:absolute;right:8px;top:8px;width:8px;height:8px;background:var(--shu);display:none}
 #zbtn.new i,#zbtn2.new i{display:block}
 #zbtn2{position:relative;background:#4a3d30;color:#f6f1e7;border:0}
 #banzuke{position:fixed;inset:0;z-index:45;display:none;flex-direction:column;align-items:center;background-color:#ebe5d9;background-image:var(--washi),var(--shippo);color:#1b1814;overflow:hidden;touch-action:none;padding:calc(env(safe-area-inset-top,0px) + 10px) 14px calc(env(safe-area-inset-bottom,0px) + 8px)}
 #blist{flex:1;min-height:0;width:100%;max-width:520px;display:flex;flex-direction:column;margin:0;padding:0;list-style:none;border-top:1px solid var(--line)}
-#blist li{flex:1;min-height:0;max-height:64px;display:grid;grid-template-columns:2.2em 1fr auto;grid-template-rows:auto auto;column-gap:10px;align-content:center;border-bottom:1px solid var(--line);font-family:var(--mincho)}
+#blist li{flex:1;min-height:0;max-height:64px;display:grid;grid-template-columns:2.2em 1fr auto;grid-template-rows:auto auto;column-gap:10px;align-content:center;padding:0 6px 0 0;border-bottom:1px solid var(--line);font-family:var(--mincho)}
 #blist .bo{grid-row:1/3;align-self:center;text-align:center;font-size:20px;font-weight:800;color:#8a5a2a}
 #blist li:nth-child(-n+3) .bo{color:#c8371a}
 #blist .bn{font-size:15px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:.02em}
@@ -111,6 +115,14 @@ body.sing{--shippo:none;--paper:#121110;--ink:#f1ece4;--sub:#a49b8f;--line:rgba(
 #blist .br{grid-column:2/4;font-size:11px;color:#6e6458;letter-spacing:.04em}
 #blist li.me{background:rgba(200,55,26,.08)}
 #blist .bx{grid-column:1/4;text-align:center;font-size:13px;color:#6e6458;max-height:none}
+#blist .bn.anon{color:#8a7f72;font-weight:600}
+#bname{flex:none;display:flex;align-items:center;justify-content:center;gap:8px;width:100%;max-width:520px;margin:0 0 8px;font-family:var(--mincho)}
+#bname label{font-size:12px;color:#6e6458;letter-spacing:.06em;white-space:nowrap}
+#bname input{width:9.5em;min-width:0;border:0;border-bottom:1px solid #1b1814;border-radius:0;background:transparent;color:#1b1814;font:800 17px var(--mincho);letter-spacing:.12em;padding:4px 2px;text-align:center;outline:none}
+#bname input::placeholder{color:#a89e90;font-weight:600;letter-spacing:.04em}
+#bname button{border:0;background:#1b1814;color:#f6f1e7;font:700 13px var(--mincho);letter-spacing:.1em;padding:7px 12px;cursor:pointer}
+#bnmsg{flex:none;min-height:1.3em;margin:-4px 0 6px;font-size:11px;color:#6e6458;font-family:var(--mincho)}
+#bnmsg.ng{color:#c8371a}
 #bclose{flex:none;width:52px;height:52px;border:0;background:transparent;color:#1b1814;padding:12px;cursor:pointer;margin-top:4px}
 #bbtn{position:relative;height:44px;border:0;background:transparent;color:var(--ink);padding:0 10px;cursor:pointer;touch-action:manipulation;pointer-events:auto;display:flex;align-items:center;font-family:var(--mincho);font-size:14px;font-weight:700;letter-spacing:.08em}
 #bbtn::after{content:'';position:absolute;left:8px;right:8px;bottom:6px;height:1px;background:var(--line)}
@@ -161,6 +173,7 @@ body.sing{--shippo:none;--paper:#121110;--ink:#f1ece4;--sub:#a49b8f;--line:rgba(
       <button id="hbtn" aria-label="遊び方">？</button>
       <button id="zbtn" aria-label="図鑑"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 4.5h6.5a2 2 0 0 1 2 2V20a1.6 1.6 0 0 0-1.6-1.6H4z"/><path d="M20 4.5h-6.5a2 2 0 0 0-2 2V20a1.6 1.6 0 0 1 1.6-1.6H20z"/></svg>図鑑<em id="zbn"></em><i></i></button>
       <button id="bbtn" aria-label="番付">番付</button>
+      <button id="sbtn" aria-label="音を切る"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path class="w" d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/><path class="x" d="M16 9.5l5 5M21 9.5l-5 5"/></svg></button>
       <button id="rsbtn" aria-label="やり直す"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg></button>
     </div>
   </div>
@@ -187,7 +200,7 @@ body.sing{--shippo:none;--paper:#121110;--ink:#f1ece4;--sub:#a49b8f;--line:rgba(
     <button id="retry" aria-label="次の粘土を回す（0秒リトライ）" title="次の粘土を回す（0秒リトライ）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg><span>もう一回</span></button>
   </div>
 </div>
-<div id="banzuke"><div class="zh"><b>番付</b></div><div class="zs">これまでの鑑定額 上位10</div><ol id="blist"></ol><button id="bclose" aria-label="閉じる"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+<div id="banzuke"><div class="zh"><b>番付</b></div><div class="zs">これまでの鑑定額 上位10</div><form id="bname" autocomplete="off"><label for="bnin">なまえ</label><input id="bnin" maxlength="12" placeholder="ひらがな6文字まで" enterkeyhint="done"><button type="submit">決める</button></form><div id="bnmsg"></div><ol id="blist"></ol><button id="bclose" aria-label="閉じる"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
 <div id="zukan"><div class="zh"><b>図鑑</b><span id="zcount"></span></div><div class="zs">形ごとに、整った器の最高額を残す</div><div id="zgrid"></div><button id="zclose" aria-label="閉じる"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
 <div id="howto">
   <div class="hw"><svg viewBox="0 0 120 84" fill="none" stroke-linecap="round"><path d="M42 78c0-14 8-20 8-30s-6-14-6-20M78 78c0-14-8-20-8-30s6-14 6-20" stroke="#1b1814" stroke-width="2"/><path d="M30 80h60" stroke="#1b1814" stroke-width="2"/><circle cx="96" cy="48" r="7" stroke="#c8371a" stroke-width="2"/><path d="M86 48h-8M82 44l-4 4 4 4" stroke="#c8371a" stroke-width="2"/></svg>
@@ -858,6 +871,13 @@ function screenToModel(px,py){
    オーディオ（Web Audio API 完全合成・リバーブ付き）
    ========================================================= */
 const AU={ctx:null,dry:null,send:null,noise:null,brown:null,m:null};
+// 音の ON/OFF（端末に覚える）
+let soundOn=true;try{soundOn=localStorage.getItem('rokuro_sound')!=='off';}catch(e){}
+function setSound(on){
+  soundOn=on;try{localStorage.setItem('rokuro_sound',on?'on':'off');}catch(e){}
+  if(AU.out)AU.out.gain.setTargetAtTime(on?1:0,AU.ctx.currentTime,0.01);
+  const b=document.getElementById('sbtn');if(b){b.classList.toggle('off',!on);b.setAttribute('aria-label',on?'音を切る':'音を出す');}
+}
 function makeIR(c,sec,decay){
   const len=Math.floor(c.sampleRate*sec),b=c.createBuffer(2,len,c.sampleRate);
   for(let ch=0;ch<2;ch++){
@@ -879,7 +899,9 @@ function audioInit(){
   // 最後段のリミッター：重なっても波形の上限を超えない
   const lim=c.createDynamicsCompressor();
   lim.threshold.value=-4;lim.knee.value=0;lim.ratio.value=20;lim.attack.value=0.001;lim.release.value=0.12;
-  comp.connect(lim);lim.connect(c.destination);AU.lim=lim;
+  // 音の ON/OFF は最後の出口で切る（OFF でも内部の処理はそのまま）
+  const out=c.createGain();out.gain.value=soundOn?1:0;
+  comp.connect(lim);lim.connect(out);out.connect(c.destination);AU.lim=lim;AU.out=out;
   const master=c.createGain();master.gain.value=0.9;master.connect(comp);
   const warm=c.createBiquadFilter();warm.type='lowshelf';warm.frequency.value=140;warm.gain.value=4;warm.connect(master);
   AU.dry=warm;
@@ -1376,8 +1398,8 @@ function computePrice(dt){
   const fast=(lt<s.logD-1)?16:7;
   s.logD+=(lt-s.logD)*(1-Math.exp(-dt*fast));
   if(s.logD-s.lastPing>0.07){
-    // 指が触れている間だけ鳴らす（離したあとの値の追いつきは無音）。特異点ボーナス中は演出として鳴らす
-    if(T-s.lastCoinT>0.045&&(s.touching||s.bonus)){sfx.coin(s.logD);s.lastCoinT=T;}
+    // 指が触れている間だけ鳴らす（離したあとの値の追いつきや、特異点ボーナスで勝手に上がる分は無音）
+    if(T-s.lastCoinT>0.045&&s.touching){sfx.coin(s.logD);s.lastCoinT=T;}
     s.lastPing=s.logD;
   }else if(s.logD<s.lastPing-0.07){
     s.lastPing=s.logD;
@@ -1468,6 +1490,7 @@ function fire(){
     lh:s.lh,rpm:s.rpm,rpmMax:Math.max(s.rpmMax,s.rpm),collapsed:s.collapsed,singular:s.singular,reason:s.collapseReason,q:s.q,chaos:s.chaos,theta:s.theta,
     peakPrice:s.peakPrice,collapseTime:s.collapseTime,collapseRpm:s.collapseRpm};
   sfx.explosion();
+  playCount();
   shojiClose(false);shojiEl.classList.add('glow');
   s.shake=20;
   pointers.clear();
@@ -2320,12 +2343,22 @@ function zOpen(){
   $('zbtn').classList.remove('new');$('zbtn2').classList.remove('new');
 }
 function zClose(){$('zukan').style.display='none';}
-/* 番付（ランキング）：サーバーの /api/rank に、銘・鑑定額・格付・プレビューの種類だけを送る（名前などは送らない）
+/* 番付（ランキング）：サーバーの /api/rank に、なまえ（ひらがな6文字まで）・銘・鑑定額・格付・プレビューの種類だけを送る
    崩壊は載せない。開発用の自動操作やデバッグを使った回も送らない */
 const RANK_API='/api/rank',RANK_SHOW=10;
 let rankList=null;
 const rankOn=()=>/^https?:/.test(location.protocol);
 function rankMine(){try{return JSON.parse(localStorage.getItem('rokuro_rank_mine')||'[]');}catch(e){return [];}}
+// なまえ：ひらがなと「ー」で6文字まで。カタカナはひらがなに直す。サーバーでも同じ決まりで確かめる
+const NAME_NG=['しね','しんで','ころす','ころせ','ちんこ','ちんぽ','まんこ','せっくす','れいぷ','きちがい','がいじ'];
+function nameFix(t){
+  t=String(t||'').normalize('NFKC').replace(/\s+/g,'').replace(/[ァ-ヶ]/g,c=>String.fromCharCode(c.charCodeAt(0)-0x60));
+  if(!t)return '';
+  if(!/^[ぁ-ゖー]{1,6}$/.test(t))return null;
+  if(NAME_NG.some(w=>t.includes(w)))return null;
+  return t;
+}
+function nameGet(){try{return nameFix(localStorage.getItem('rokuro_name'))||'';}catch(e){return '';}}
 function rankFetch(){
   if(!rankOn())return Promise.resolve(null);
   return fetch(RANK_API,{cache:'no-store'}).then(r=>r.ok?r.json():null).then(j=>{rankList=j&&Array.isArray(j.list)?j.list:null;return rankList;}).catch(()=>null);
@@ -2334,7 +2367,7 @@ function rankSubmit(f,i){
   if(!rankOn()||DBG.used||(f.collapsed&&!f.singular)||!i)return;
   // 番付に届かない額は送らない
   if(rankList&&rankList.length>=RANK_SHOW&&f.price<=rankList[RANK_SHOW-1].p)return;
-  const body={n:i.name,p:f.price,r:i.rank,k:shareKey(f,i)};
+  const body={n:i.name,p:f.price,r:i.rank,k:shareKey(f,i),u:nameGet()};
   fetch(RANK_API,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)})
     .then(r=>r.ok?r.json():null).then(j=>{
       if(!j)return;
@@ -2354,17 +2387,37 @@ function bRender(){
     const li=document.createElement('li');if(mine.includes(e.id))li.className='me';
     const d=new Date(e.t);
     const c=(cls,t)=>{const x=document.createElement('span');x.className=cls;x.textContent=t;li.appendChild(x);};
-    c('bo',String(n+1));c('bn','「'+e.n+'」');c('bp','¥'+fmt(e.p));
-    c('br',e.r+'　'+(d.getMonth()+1)+'月'+d.getDate()+'日'+(mine.includes(e.id)?'　あなたの器':''));
+    // 1行目：なまえと鑑定額　2行目：銘・格付・日付
+    c('bo',String(n+1));c('bn'+(e.u?'':' anon'),e.u||'名無し');c('bp','¥'+fmt(e.p));
+    c('br','「'+e.n+'」　'+e.r+'　'+(d.getMonth()+1)+'/'+d.getDate());
     ol.appendChild(li);
   });
 }
-function bOpen(){bRender();$('banzuke').style.display='flex';rankFetch().then(()=>{if($('banzuke').style.display==='flex')bRender();});}
+// プレイ数：焼成のたびに1回。この端末で初めてなら「新しい人」として数える（中身は回数だけ）
+function playCount(){
+  if(!rankOn()||DBG.used)return;
+  let first=false;try{first=!localStorage.getItem('rokuro_played');localStorage.setItem('rokuro_played','1');}catch(e){}
+  fetch('/api/play',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({f:first?1:0}),keepalive:true}).catch(()=>{});
+}
+// なまえ欄：決めると端末に覚え、次から番付に送る記録に付く（すでに載った記録は変わらない）
+$('bname').addEventListener('submit',e=>{
+  e.preventDefault();
+  const v=nameFix($('bnin').value),m=$('bnmsg');
+  if(v===null){m.textContent='ひらがな6文字までで入れてください';m.className='ng';return;}
+  try{if(v)localStorage.setItem('rokuro_name',v);else localStorage.removeItem('rokuro_name');}catch(err){}
+  $('bnin').value=v;$('bnin').blur();
+  m.textContent=v?'「'+v+'」で番付に載ります':'名無しで番付に載ります';m.className='';
+});
+function bOpen(){$('bnin').value=nameGet();$('bnmsg').textContent='';$('bnmsg').className='';bRender();$('banzuke').style.display='flex';rankFetch().then(()=>{if($('banzuke').style.display==='flex')bRender();});}
 function bClose(){$('banzuke').style.display='none';}
 $('bbtn').addEventListener('pointerdown',e=>{e.stopPropagation();});
 $('bbtn').addEventListener('click',()=>{if(S.phase==='play'&&!S.started)bOpen();});
 $('bclose').addEventListener('click',bClose);
 $('banzuke').addEventListener('pointerdown',e=>e.stopPropagation());
+// 音の ON/OFF ボタン（プレイ中も押せる）
+$('sbtn').addEventListener('pointerdown',e=>{e.stopPropagation();});
+$('sbtn').addEventListener('click',()=>{audioInit();setSound(!soundOn);});
+setSound(soundOn);
 rankFetch();
 // 遊び方：最初の1回だけ自動で出す。以降は「？」から
 const HKEY='rokuro_howto_v1';
@@ -2448,6 +2501,8 @@ saveBtn.addEventListener('click',saveImg);
 retryBtn.addEventListener('click',doRetry);
 window.addEventListener('keydown',e=>{
   if(e.repeat)return;
+  // 名前欄に入力している間は、ゲームのキー操作を効かせない
+  if(e.target&&e.target.tagName==='INPUT')return;
   if(e.code==='Enter'){if(S.phase==='result'){e.preventDefault();doRetry();}}
   else if(e.code==='KeyR'&&(S.phase==='result'||S.phase==='play'))doRetry();
 });
@@ -2727,6 +2782,7 @@ function dbgUpdate(){
   if(cur!==DBG.tasMark){DBG.tasMark=cur;DBG.el.querySelectorAll('button[data-tas]').forEach(b=>{b.style.background=b.getAttribute('data-tas')===cur?'#c8371a':'#3a3631';});}
 }
 window.addEventListener('keydown',e=>{
+  if(e.target&&e.target.tagName==='INPUT')return;
   if(e.code==='Backquote'){if(!DBG.unlocked)return;e.preventDefault();dbgToggle();return;}
   if(!DBG.on)return;
   const ks=Object.keys(TAS_PLANS),c=e.key.toUpperCase();
