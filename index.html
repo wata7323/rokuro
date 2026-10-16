@@ -101,6 +101,19 @@ body.sing{--shippo:none;--paper:#121110;--ink:#f1ece4;--sub:#a49b8f;--line:rgba(
 #zbtn i,#zbtn2 i{position:absolute;right:8px;top:8px;width:8px;height:8px;background:var(--shu);display:none}
 #zbtn.new i,#zbtn2.new i{display:block}
 #zbtn2{position:relative;background:#4a3d30;color:#f6f1e7;border:0}
+#banzuke{position:fixed;inset:0;z-index:45;display:none;flex-direction:column;align-items:center;background-color:#ebe5d9;background-image:var(--washi),var(--shippo);color:#1b1814;overflow:hidden;touch-action:none;padding:calc(env(safe-area-inset-top,0px) + 10px) 14px calc(env(safe-area-inset-bottom,0px) + 8px)}
+#blist{flex:1;min-height:0;width:100%;max-width:520px;display:flex;flex-direction:column;margin:0;padding:0;list-style:none;border-top:1px solid var(--line)}
+#blist li{flex:1;min-height:0;max-height:64px;display:grid;grid-template-columns:2.2em 1fr auto;grid-template-rows:auto auto;column-gap:10px;align-content:center;border-bottom:1px solid var(--line);font-family:var(--mincho)}
+#blist .bo{grid-row:1/3;align-self:center;text-align:center;font-size:20px;font-weight:800;color:#8a5a2a}
+#blist li:nth-child(-n+3) .bo{color:#c8371a}
+#blist .bn{font-size:15px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:.02em}
+#blist .bp{font-size:15px;font-weight:800;color:#c8371a;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+#blist .br{grid-column:2/4;font-size:11px;color:#6e6458;letter-spacing:.04em}
+#blist li.me{background:rgba(200,55,26,.08)}
+#blist .bx{grid-column:1/4;text-align:center;font-size:13px;color:#6e6458;max-height:none}
+#bclose{flex:none;width:52px;height:52px;border:0;background:transparent;color:#1b1814;padding:12px;cursor:pointer;margin-top:4px}
+#bbtn{position:relative;height:44px;border:0;background:transparent;color:var(--ink);padding:0 10px;cursor:pointer;touch-action:manipulation;pointer-events:auto;display:flex;align-items:center;font-family:var(--mincho);font-size:14px;font-weight:700;letter-spacing:.08em}
+#bbtn::after{content:'';position:absolute;left:8px;right:8px;bottom:6px;height:1px;background:var(--line)}
 #zukan{position:fixed;inset:0;z-index:45;display:none;flex-direction:column;align-items:center;background-color:#ebe5d9;background-image:var(--washi),var(--shippo);color:#1b1814;overflow:hidden;touch-action:none;padding:calc(env(safe-area-inset-top,0px) + 10px) 10px calc(env(safe-area-inset-bottom,0px) + 8px)}
 .zh{display:flex;justify-content:center;align-items:baseline;gap:12px;flex:none}
 .zs{font-size:11px;color:#6e6458;letter-spacing:.06em;margin:2px 0 8px;flex:none}
@@ -147,6 +160,7 @@ body.sing{--shippo:none;--paper:#121110;--ink:#f1ece4;--sub:#a49b8f;--line:rgba(
     <div class="r4">
       <button id="hbtn" aria-label="遊び方">？</button>
       <button id="zbtn" aria-label="図鑑"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 4.5h6.5a2 2 0 0 1 2 2V20a1.6 1.6 0 0 0-1.6-1.6H4z"/><path d="M20 4.5h-6.5a2 2 0 0 0-2 2V20a1.6 1.6 0 0 1 1.6-1.6H20z"/></svg>図鑑<em id="zbn"></em><i></i></button>
+      <button id="bbtn" aria-label="番付">番付</button>
       <button id="rsbtn" aria-label="やり直す"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg></button>
     </div>
   </div>
@@ -173,6 +187,7 @@ body.sing{--shippo:none;--paper:#121110;--ink:#f1ece4;--sub:#a49b8f;--line:rgba(
     <button id="retry" aria-label="次の粘土を回す（0秒リトライ）" title="次の粘土を回す（0秒リトライ）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg><span>もう一回</span></button>
   </div>
 </div>
+<div id="banzuke"><div class="zh"><b>番付</b></div><div class="zs">これまでの鑑定額 上位10</div><ol id="blist"></ol><button id="bclose" aria-label="閉じる"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
 <div id="zukan"><div class="zh"><b>図鑑</b><span id="zcount"></span></div><div class="zs">形ごとに、整った器の最高額を残す</div><div id="zgrid"></div><button id="zclose" aria-label="閉じる"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
 <div id="howto">
   <div class="hw"><svg viewBox="0 0 120 84" fill="none" stroke-linecap="round"><path d="M42 78c0-14 8-20 8-30s-6-14-6-20M78 78c0-14-8-20-8-30s6-14 6-20" stroke="#1b1814" stroke-width="2"/><path d="M30 80h60" stroke="#1b1814" stroke-width="2"/><circle cx="96" cy="48" r="7" stroke="#c8371a" stroke-width="2"/><path d="M86 48h-8M82 44l-4 4 4 4" stroke="#c8371a" stroke-width="2"/></svg>
@@ -908,7 +923,6 @@ function audioInit(){
   const clayBp=c.createBiquadFilter();clayBp.type='bandpass';clayBp.frequency.value=600;clayBp.Q.value=1.4;
   const clayGain=c.createGain();clayGain.gain.value=0;
   cs1.connect(clayBp);cs2.connect(cs2g);cs2g.connect(clayBp);clayBp.connect(clayGain);clayGain.connect(AU.dry);
-  const clayS=c.createGain();clayS.gain.value=0.15;clayGain.connect(clayS);clayS.connect(AU.send);
   cs1.start();cs2.start(0,0.7);
   AU.rg=rg;
   AU.m={mg,mlp,rlp,o1,o2,o3,bp,jg,o4,o4g,lfo,lfg,clayBp,clayGain};
@@ -919,10 +933,11 @@ function setP(p,v,t,tc){
   if(o!==undefined&&Math.abs(v-o)<=Math.max(Math.abs(o)*0.015,0.0005))return;
   p.__v=v;p.setTargetAtTime(v,t,tc);
 }
-function audioClay(act,rpmF,hFrac){
+// on：指が粘土に触れているか。触れている間は止めていても鳴り、離したら即座に切る
+function audioClay(act,rpmF,hFrac,on){
   if(!AU.ctx||!AU.m)return;
   const t=AU.ctx.currentTime,m=AU.m,a=clamp(act,0,1);
-  setP(m.clayGain.gain,a>0.02?0.08+a*0.42:0,t,a>0.02?0.03:0.05);
+  setP(m.clayGain.gain,on?0.1+a*0.4:0,t,0.008);
   // 音色の揺れは毎秒20回まで
   if(t-(AU.clayT||0)<0.05)return;AU.clayT=t;
   const f=350+1050*clamp(0.45*hFrac+0.4*rpmF+0.25*a,0,1)*(0.9+Math.random()*0.2);
@@ -1361,7 +1376,8 @@ function computePrice(dt){
   const fast=(lt<s.logD-1)?16:7;
   s.logD+=(lt-s.logD)*(1-Math.exp(-dt*fast));
   if(s.logD-s.lastPing>0.07){
-    if(T-s.lastCoinT>0.045){sfx.coin(s.logD);s.lastCoinT=T;}
+    // 指が触れている間だけ鳴らす（離したあとの値の追いつきは無音）。特異点ボーナス中は演出として鳴らす
+    if(T-s.lastCoinT>0.045&&(s.touching||s.bonus)){sfx.coin(s.logD);s.lastCoinT=T;}
     s.lastPing=s.logD;
   }else if(s.logD<s.lastPing-0.07){
     s.lastPing=s.logD;
@@ -1395,11 +1411,12 @@ function simStep(dt,inputs){
   clayAct=0;clayH=0;
   for(const p of pointers.values()){if(applyPointer(p,dt))touched=true;}
   for(const q of inputs){if(applyModel(q.x,q.y,q.dy,dt))touched=true;}
-  audioClay(clayAct,s.rpmF,clayH);
+  audioClay(clayAct,s.rpmF,clayH,touched);
   if(touched&&!s.started)startTimer();
   physics(dt,touched);
+  s.touching=touched;
   computePrice(dt);
-  if(!s.collapsed)s.peakPrice=Math.max(s.peakPrice,roundSig(s.priceTarget,3));
+  if(!s.collapsed&&!s.bonus)s.peakPrice=Math.max(s.peakPrice,roundSig(s.priceTarget,3));
   s.zone=inZone(s);
   if(s.zone||s.bonus)s.zoneTime+=dt;
 }
@@ -1436,7 +1453,7 @@ function startTimer(){
   const s=S;if(s.started)return;
   s.started=true;s.elapsed=0;
   hintEl.style.display='none';
-  $('zbtn').style.display='none';$('hbtn').style.display='none';
+  $('zbtn').style.display='none';$('hbtn').style.display='none';$('bbtn').style.display='none';
   $('rsbtn').style.display='block';
   sfx.click();
 }
@@ -1901,6 +1918,8 @@ function drawSection(g,f,m,x,y,w,h){
     }
   }
 }
+// 印の列の区切りを指定する語（右の列から読む）
+const SEAL_COLS={'産業廃棄物':['産業','廃棄物'],'重要文化財':['重要','文化財']};
 function makeSeal(text,size,seed){
   const c=document.createElement('canvas');c.width=c.height=size;
   const g=c.getContext('2d');const rnd=mulberry32(seed^0x5eed);
@@ -1910,14 +1929,17 @@ function makeSeal(text,size,seed){
   g.beginPath();
   g.moveTo(p+j(),p+j());g.lineTo(size-p+j(),p+j());g.lineTo(size-p+j(),size-p+j());g.lineTo(p+j(),size-p+j());g.closePath();g.fill();
   const chars=Array.from(text);const n=chars.length;
-  const cols=n<=3?1:2,rows=Math.ceil(n/cols);
+  const split=SEAL_COLS[text]&&SEAL_COLS[text].map(t=>Array.from(t));
+  const cols=split?split.length:(n<=3?1:2),rows=split?Math.max(...split.map(t=>t.length)):Math.ceil(n/cols);
   const pad=size*0.13,inner=size-pad*2,cw=inner/cols,ch=inner/rows;
   const fs=Math.min(cw,ch)*0.9;
   g.fillStyle='#fff';g.textAlign='center';g.textBaseline='middle';
   g.font='900 '+fs+'px '+MINCHO;
   for(let i=0;i<n;i++){
-    const col=Math.floor(i/rows),row=i%rows;
-    const xx=size-pad-(col+0.5)*cw,yy=pad+(row+0.5)*ch;
+    let col=Math.floor(i/rows),row=i%rows,len=rows;
+    if(split){let k=i;col=0;while(k>=split[col].length){k-=split[col].length;col++;}row=k;len=split[col].length;}
+    // 字数の少ない列は、列の高さいっぱいに均等に並べる
+    const xx=size-pad-(col+0.5)*cw,yy=pad+(row+0.5)*inner/len;
     g.save();g.translate(xx,yy);
     g.scale(Math.min(1.6,cw/fs*0.92),1);
     g.fillText(chars[i],0,0);g.restore();
@@ -2093,6 +2115,7 @@ function updateResult(dt){
     }else{
       s.landed=true;s.stampStart=s.revealT;
       xBtn.disabled=false;
+      rankSubmit(f,cardInfo);
       audioDuck(false);
       sfx.kaan();sfx.doon(0.13);
       cardCv.classList.remove('slam');void cardCv.offsetWidth;cardCv.classList.add('slam');
@@ -2116,16 +2139,55 @@ function toast(msg){
   toastEl.textContent=msg;toastEl.style.opacity='1';
   clearTimeout(toastTimer);toastTimer=setTimeout(()=>{toastEl.style.opacity='0';},2800);
 }
+// 変動率：上がった分は ▲（2倍以上は「倍」）、下がった分は ▼
+function changeStr(exp,act){
+  if(!(exp>0))return '';
+  const r=act/exp;
+  if(r>=2)return '▲'+(r>=100?fmt(Math.round(r)):r.toFixed(1))+'倍';
+  const d=(r-1)*100,a=Math.abs(d);
+  if(a<0.05)return '±0%';
+  return (d>0?'▲':'▼')+(a>=99.95?(Math.floor(a*100)/100).toFixed(2):a.toFixed(1))+'%';
+}
+// 一言：結果の種類と、予想からの変動で決める（同じ器なら同じ一言）
+function shareMood(f,i){
+  const r=f.price/Math.max(1,f.peakPrice||f.price),P=a=>a[i.seed%a.length];
+  if(f.collapsed&&!f.singular)return f.peakPrice>=1e6?P(['ほぼ理想形だったのに','最後の瞬間に運命が分かれた…']):P(['完全に暴走した','回転に呑まれた']);
+  if(f.singular)return r>=2?P(['まさかの大化け！','神の手か…']):'前例なき結果';
+  if(f.price>=1e8||i.glaze==='yohen')return '幻の器が生まれた';
+  if(i.score<0.2)return 'これはもう芸術だ';
+  if(r<=0.7)return P(['最後の瞬間に運命が分かれた…','ほぼ理想形だったのに']);
+  if(r>=1.3)return P(['まさかの大化け！','神の手か…']);
+  if(r<=0.9)return P(['あと一歩及ばず','最後に少し欲が出た']);
+  if(r>=1.1)return P(['焼きで化けた','窯が味方した']);
+  return P(['読みどおりの仕上がり','手応えどおりの一品']);
+}
 function shareText(){
-  const f=S.final,i=cardInfo;
-  // 途中で値が下がったときだけ、最高時価から矢印でつなぐ
-  const drop=!f.singular&&(f.collapsed||f.peakPrice>f.price*1.05);
-  return '「'+i.name+'」\n'+(drop?'¥'+fmt(f.peakPrice)+' → ':'')+'¥'+fmt(f.price)+'\n\n#10秒暴走ろくろ';
+  const f=S.final,i=cardInfo,exp=f.peakPrice||f.price,r=f.price/Math.max(1,exp);
+  // 見出し：崩壊・暴落・特異点は見出しで先に伝える
+  const head=f.singular?'【暴走結果・特異点】':(f.collapsed?'【暴走結果・崩壊】':(r<=0.5?'【暴走結果・暴落】':'【暴走結果】'));
+  const L=[head,'「'+i.name+'」','予想鑑定額 ¥'+fmt(exp),'実際の鑑定額 ¥'+fmt(f.price)+'（'+changeStr(exp,f.price)+'）'];
+  if(f.collapsed&&!f.singular&&i.disposal)L.push('処分：'+i.disposal);
+  L.push(shareMood(f,i));
+  return L.join('\n')+'\n\n#10秒暴走ろくろ';
+}
+// 共有リンク：結果に合うプレビュー画像のページ（capture/ogp_k.js で作った k/<key>/。画像は og/<key>.jpg）。URL に入るのは決まった記号だけ
+const SHARE_RANK={'人間国宝':'kokuho','重要文化財':'juyo','名品':'meihin','民芸品':'mingei','等外':'togai',
+  '創世の特異点':'sousei','神域の特異点':'shiniki','前衛の特異点':'zenei','鑑定不能':'funo','産業廃棄物':'haiki'};
+function shareKey(f,i){
+  const rk=i&&SHARE_RANK[i.rank];
+  if(!f||!rk)return '';
+  if(f.singular||f.collapsed)return rk;
+  return (i.kind==='水注'?'suichu':i.top[0].k)+'-'+rk;
+}
+function shareLink(){
+  const isHttp=/^https?:/.test(location.protocol);
+  if(!PUBLIC_URL)return isHttp?location.href.split('#')[0]:'';
+  const k=shareKey(S.final,cardInfo);
+  return PUBLIC_URL+(k?'k/'+k+'/':'');
 }
 function shareX(){
   if(!S.final||!cardInfo)return;
-  const isHttp=/^https?:/.test(location.protocol);
-  const shareUrl=PUBLIC_URL||(isHttp?location.href.split('#')[0]:'');
+  const shareUrl=shareLink();
   // スマホでは共有シートに鑑定書画像ごと渡す（Xを選べば画像付きの投稿画面になる）
   const coarse=window.matchMedia&&window.matchMedia('(pointer:coarse)').matches;
   if(coarse&&resultBlob&&navigator.canShare){
@@ -2140,8 +2202,7 @@ function shareX(){
   openIntent();
 }
 function openIntent(){
-  const isHttp=/^https?:/.test(location.protocol);
-  const shareUrl=PUBLIC_URL||(isHttp?location.href.split('#')[0]:'');
+  const shareUrl=shareLink();
   const url='https://x.com/intent/tweet?text='+encodeURIComponent(shareText())+(shareUrl?'&url='+encodeURIComponent(shareUrl):'');
   try{
     if(resultBlob&&navigator.clipboard&&window.ClipboardItem){
@@ -2259,6 +2320,52 @@ function zOpen(){
   $('zbtn').classList.remove('new');$('zbtn2').classList.remove('new');
 }
 function zClose(){$('zukan').style.display='none';}
+/* 番付（ランキング）：サーバーの /api/rank に、銘・鑑定額・格付・プレビューの種類だけを送る（名前などは送らない）
+   崩壊は載せない。開発用の自動操作やデバッグを使った回も送らない */
+const RANK_API='/api/rank',RANK_SHOW=10;
+let rankList=null;
+const rankOn=()=>/^https?:/.test(location.protocol);
+function rankMine(){try{return JSON.parse(localStorage.getItem('rokuro_rank_mine')||'[]');}catch(e){return [];}}
+function rankFetch(){
+  if(!rankOn())return Promise.resolve(null);
+  return fetch(RANK_API,{cache:'no-store'}).then(r=>r.ok?r.json():null).then(j=>{rankList=j&&Array.isArray(j.list)?j.list:null;return rankList;}).catch(()=>null);
+}
+function rankSubmit(f,i){
+  if(!rankOn()||DBG.used||(f.collapsed&&!f.singular)||!i)return;
+  // 番付に届かない額は送らない
+  if(rankList&&rankList.length>=RANK_SHOW&&f.price<=rankList[RANK_SHOW-1].p)return;
+  const body={n:i.name,p:f.price,r:i.rank,k:shareKey(f,i)};
+  fetch(RANK_API,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)})
+    .then(r=>r.ok?r.json():null).then(j=>{
+      if(!j)return;
+      if(Array.isArray(j.list))rankList=j.list;
+      if(j.pos&&j.id){
+        const m=rankMine();m.push(j.id);try{localStorage.setItem('rokuro_rank_mine',JSON.stringify(m.slice(-50)));}catch(e){}
+        toast('番付 第'+j.pos+'位に載りました');
+      }
+    }).catch(()=>{});
+}
+function bRender(){
+  const ol=$('blist');ol.innerHTML='';
+  if(!rankList){const li=document.createElement('li');li.className='bx';li.textContent=rankOn()?'番付を読み込めませんでした':'公開ページでのみ表示されます';ol.appendChild(li);return;}
+  if(!rankList.length){const li=document.createElement('li');li.className='bx';li.textContent='まだ記録がありません';ol.appendChild(li);return;}
+  const mine=rankMine();
+  rankList.slice(0,RANK_SHOW).forEach((e,n)=>{
+    const li=document.createElement('li');if(mine.includes(e.id))li.className='me';
+    const d=new Date(e.t);
+    const c=(cls,t)=>{const x=document.createElement('span');x.className=cls;x.textContent=t;li.appendChild(x);};
+    c('bo',String(n+1));c('bn','「'+e.n+'」');c('bp','¥'+fmt(e.p));
+    c('br',e.r+'　'+(d.getMonth()+1)+'月'+d.getDate()+'日'+(mine.includes(e.id)?'　あなたの器':''));
+    ol.appendChild(li);
+  });
+}
+function bOpen(){bRender();$('banzuke').style.display='flex';rankFetch().then(()=>{if($('banzuke').style.display==='flex')bRender();});}
+function bClose(){$('banzuke').style.display='none';}
+$('bbtn').addEventListener('pointerdown',e=>{e.stopPropagation();});
+$('bbtn').addEventListener('click',()=>{if(S.phase==='play'&&!S.started)bOpen();});
+$('bclose').addEventListener('click',bClose);
+$('banzuke').addEventListener('pointerdown',e=>e.stopPropagation());
+rankFetch();
 // 遊び方：最初の1回だけ自動で出す。以降は「？」から
 const HKEY='rokuro_howto_v1';
 function hOpen(first){$('hgo').textContent=first?'触れて始める':'触れて閉じる';$('howto').style.display='flex';}
@@ -2305,7 +2412,7 @@ function retry(){
   resultEl.style.display='none';
   ctrlEl.style.visibility='visible';
   hintEl.style.display='block';
-  $('zbtn').style.display='flex';$('hbtn').style.display='flex';
+  $('zbtn').style.display='flex';$('hbtn').style.display='flex';$('bbtn').style.display='flex';
   $('rsbtn').style.display='none';
   zClose();
   flashEl.style.opacity='0';
@@ -2330,7 +2437,7 @@ fxCv.addEventListener('pointermove',e=>{
   const p=pointers.get(e.pointerId);
   if(p){p.x=e.clientX;p.y=e.clientY;}
 });
-const pUp=e=>{pointers.delete(e.pointerId);};
+const pUp=e=>{pointers.delete(e.pointerId);if(!pointers.size)audioClay(0,0,0,false);};
 fxCv.addEventListener('pointerup',pUp);
 fxCv.addEventListener('pointercancel',pUp);
 fxCv.addEventListener('lostpointercapture',pUp);
@@ -2422,7 +2529,7 @@ function tasControl(s,P,t,dt,K){
 /*TAS-PLANS*/const TAS_PLANS={"any":{"label":"最高値","P":{"rc":[16.71,22.53,44.81,45.72,42.86,47.46,48.91,54.4,69.55],"H":344.75,"T":0.2,"amp":4.72,"fq":1,"eps":0.9,"hold":0,"t0":0,"tr":11.1,"sh":2.17,"nf":2,"gain":1}},"tall":{"label":"塔","P":{"rc":[14.79,14.59,30.96,42.92,35.98,29.51,27.07,39.87,36.51],"H":301.2,"T":2.69,"amp":0,"fq":1,"eps":0.05,"hold":1,"t0":0.67,"tr":13.71,"sh":0,"nf":2,"gain":1}},"wide":{"label":"大皿","P":{"rc":[23.65,18.1,34.54,40.34,45.58,43.57,47.49,53.13,53.03],"H":314.62,"T":0.25,"amp":0.25,"fq":1,"eps":0.05,"hold":1,"t0":0,"tr":7.3,"sh":0.11,"nf":2,"gain":1}},"thin":{"label":"薄手","P":{"rc":[92.06,92.81,71.39,75.16,62.16,53.8,41.88,20.79,13.22],"H":383.04,"T":0.48,"amp":0.2,"fq":1,"eps":0.05,"hold":0,"t0":0,"tr":9.9,"sh":14.16,"nf":2,"gain":1}},"waist":{"label":"徳利","P":{"rc":[9.89,35.48,45.42,31.4,17.47,2,27.61,34.5,44.5],"H":238.31,"T":0.75,"amp":0,"fq":1.98,"eps":1.74,"hold":1,"t0":3.02,"tr":10.23,"sh":0,"nf":2,"gain":1}},"flare":{"label":"朝顔","P":{"rc":[10.57,26.98,44.76,52.97,50.24,48.96,54.16,60.96,67.95],"H":298.07,"T":0.42,"amp":0,"fq":7.33,"eps":0.8,"hold":1,"t0":1.47,"tr":7.78,"sh":0,"nf":2,"gain":1}},"closed":{"label":"壺","P":{"rc":[68.86,70.16,81.88,98.41,82.95,60.88,43.02,21.68,3.99],"H":216.83,"T":3.62,"amp":0,"fq":5.37,"eps":0.74,"hold":1,"t0":0.11,"tr":7.57,"sh":0,"nf":2,"gain":1}},"bulge":{"label":"甕","P":{"rc":[21.62,39.34,80.92,92.94,75.05,60.75,55.96,43.51,6.57],"H":153.85,"T":2.27,"amp":1.11,"fq":2.36,"eps":0.39,"hold":0,"t0":2.13,"tr":7.31,"sh":0,"nf":2,"gain":1}},"flat":{"label":"平皿","P":{"rc":[106.45,87.97,80.17,80.13,84.55,88.22,123.5,87.58,87.44],"H":40,"T":0.49,"amp":0,"fq":7.91,"eps":0.37,"hold":0,"t0":0,"tr":9.46,"sh":8.87,"nf":2,"gain":1}},"slender":{"label":"一輪挿し","P":{"rc":[9.57,8.85,7.93,7.79,8.23,7.83,5.82,2,2],"H":312.86,"T":9.21,"amp":0,"fq":2.51,"eps":0.05,"hold":0,"t0":0,"tr":15.07,"sh":2.14,"nf":2,"gain":1}},"ridge":{"label":"段花入","P":{"rc":[57.53,46.1,37.57,66.53,52.18,61.42,52.48,98.73,72.64],"H":211.78,"T":2.44,"amp":24,"fq":6.02,"eps":0.43,"hold":1,"t0":0.12,"tr":12.38,"sh":0,"nf":2,"gain":1}},"twist":{"label":"呪物","P":{"rc":[35.49,42.1,30.41,24.84,27.13,19.38,18.61,23.55,36.79],"H":229.36,"T":0.93,"amp":4.14,"fq":7.72,"eps":0.36,"hold":0,"t0":0.33,"tr":8.08,"sh":20.78,"nf":2,"gain":1}}};/*TAS-PLANS-END*/
 function tasStart(name){
   retry();
-  DBG.tasLast=name;
+  DBG.tasLast=name;DBG.used=true;
   TAS.on=true;TAS.name=name;TAS.plan=TAS_PLANS[name];TAS.t=0;TAS.log=[];TAS.nextLog=0;TAS.result=null;TAS.inputs=[];
 }
 function tasStop(){TAS.on=false;TAS.inputs=[];}
@@ -2590,6 +2697,7 @@ function dbgBuild(){
 }
 function dbgToggle(force){
   DBG.on=force===undefined?!DBG.on:force;
+  if(DBG.on)DBG.used=true;
   if(DBG.on&&!DBG.el)dbgBuild();
   if(DBG.el)DBG.el.style.display=DBG.on?'block':'none';
 }
@@ -2633,7 +2741,7 @@ DBG.unlocked=/[?&](debug\b|tas=)/.test(location.search);
   let taps=[];
   window.addEventListener('pointerdown',e=>{
     if(!S||S.started||S.phase!=='play'||e.clientX>110||e.clientY>80)return;
-    if(e.target&&e.target.closest&&e.target.closest('button,#dbg-panel,#zukan,#result,#howto'))return;
+    if(e.target&&e.target.closest&&e.target.closest('button,#dbg-panel,#zukan,#result,#howto,#banzuke'))return;
     e.stopPropagation();e.preventDefault();
     const now=performance.now();
     taps=taps.filter(t=>now-t<1500);taps.push(now);
