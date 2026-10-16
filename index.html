@@ -238,10 +238,10 @@ function projectWith(c,x,y,z,w,h){
    WebGL レンダラ（回転体メッシュ＋手続き的シェーダ）
    ========================================================= */
 const VS=`
-attribute vec3 aPos;attribute vec3 aNor;attribute vec3 aAux;
+attribute vec3 aPos;attribute vec3 aNor;attribute vec3 aAux;attribute float aPool;
 uniform mat4 uVP;
-varying vec3 vPos;varying vec3 vNor;varying vec3 vAux;
-void main(){vPos=aPos;vNor=aNor;vAux=aAux;gl_Position=uVP*vec4(aPos,1.0);}
+varying vec3 vPos;varying vec3 vNor;varying vec3 vAux;varying float vPool;
+void main(){vPos=aPos;vNor=aNor;vAux=aAux;vPool=aPool;gl_Position=uVP*vec4(aPos,1.0);}
 `;
 const FS=`
 #ifdef GL_FRAGMENT_PRECISION_HIGH
@@ -249,7 +249,7 @@ precision highp float;
 #else
 precision mediump float;
 #endif
-varying vec3 vPos;varying vec3 vNor;varying vec3 vAux;
+varying vec3 vPos;varying vec3 vNor;varying vec3 vAux;varying float vPool;
 uniform vec3 uEye;
 uniform float uRot,uBlur,uHeat,uMode,uTime,uSeed,uKind,uBaseR,uTopY,uWet;
 float hash(vec3 p){p=fract(p*0.3183099+vec3(0.71,0.113,0.419));p*=17.0;return fract(p.x*p.y*p.z*(p.x+p.y+p.z));}
@@ -329,7 +329,7 @@ void main(){
     float fr=pow(1.0-max(dot(N,V),0.0),4.0);
     col+=vec3(1.0,0.96,0.9)*sp*0.75*uWet*ao+env(reflect(-V,N))*fr*0.3*uWet*ao;
   }else{
-    vec3 base=vec3(0.5);float gloss=0.8;float metal=0.0;vec3 emis=vec3(0.0);
+    vec3 base=vec3(0.5);float gloss=0.8;float metal=0.0;vec3 emis=vec3(0.0);vec3 brkC=vec3(0.72,0.55,0.40);
     if(uMode<1.5){
       vec2 vo=vor(Pf*0.11+uSeed);
       float rad=0.16+0.1*noise(Pf*0.1);
@@ -371,12 +371,52 @@ void main(){
       base=mix(base,vec3(0.88,0.52,0.33),bl2*0.65);
       base*=1.0-0.5*smoothstep(0.86,0.9,noise(Pf*0.8));
       gloss=0.45;
-    }else{
+    }else if(uMode<7.5){
       base=mix(vec3(0.34,0.18,0.09),vec3(0.55,0.32,0.17),fbm(Pf*0.09));
       float drip=smoothstep(0.6,0.74,noise(vec3(cos(ang)*2.6,y*0.012,sin(ang)*2.6)+uSeed))*smoothstep(uTopY*0.25,uTopY*0.8,y+noise(Pf*0.05)*25.0);
       base=mix(base,vec3(0.36,0.38,0.2),drip*0.75);
       gloss=0.25+0.7*drip;
+    }else if(uMode<8.5){
+      // 油滴天目：漆黒に銀の斑点
+      vec2 vo=vor(Pf*0.3+uSeed);
+      float spot=1.0-smoothstep(0.07,0.2,vo.x);
+      base=mix(vec3(0.018,0.016,0.02),vec3(0.07,0.05,0.04),fbm(Pf*0.1));
+      base=mix(base,vec3(0.6,0.6,0.62)+vec3(0.1,0.12,0.2)*pow(1.0-max(dot(N,V),0.0),2.0),spot*0.85);
+      gloss=1.0;brkC=vec3(0.42,0.24,0.12);
+    }else if(uMode<9.5){
+      // 辰砂：銅の赤。縁は白緑に抜ける
+      base=mix(vec3(0.40,0.03,0.05),vec3(0.70,0.10,0.10),fbm(Pf*0.05+uSeed));
+      base=mix(base,vec3(0.34,0.10,0.30),smoothstep(0.6,0.8,fbm(Pf*0.03+5.0+uSeed))*0.55);
+      gloss=0.85;brkC=vec3(0.74,0.80,0.72);
+    }else if(uMode<10.5){
+      // 瑠璃：深い呉須の青
+      base=mix(vec3(0.03,0.07,0.30),vec3(0.10,0.22,0.58),fbm(Pf*0.05+uSeed));
+      gloss=0.95;brkC=vec3(0.45,0.60,0.85);
+    }else if(uMode<11.5){
+      // 黄瀬戸：艶のない黄、胆礬の緑と焦げ
+      base=mix(vec3(0.64,0.53,0.24),vec3(0.80,0.70,0.40),fbm(Pf*0.07+uSeed));
+      base=mix(base,vec3(0.16,0.44,0.30),smoothstep(0.68,0.8,fbm(Pf*0.025+uSeed*2.0))*0.85);
+      base=mix(base,vec3(0.45,0.25,0.12),smoothstep(0.75,0.9,noise(Pf*0.3))*0.4);
+      gloss=0.3;brkC=vec3(0.60,0.40,0.22);
+    }else{
+      // 粉引：白化粧に雨漏りの染み
+      base=vec3(0.92,0.90,0.85)*(0.95+0.05*fbm(Pf*0.2));
+      base=mix(base,vec3(0.62,0.58,0.52),smoothstep(0.62,0.8,fbm(Pf*0.03+uSeed))*0.55);
+      base*=1.0-0.4*smoothstep(0.9,0.95,noise(Pf*1.2));
+      gloss=0.3;brkC=vec3(0.50,0.38,0.30);
     }
+    // 1点ごとの色の揺らぎ
+    vec3 vr=vec3(hash(vec3(uSeed,1.0,2.0)),hash(vec3(uSeed,3.0,5.0)),hash(vec3(uSeed,7.0,1.0)))-0.5;
+    base*=1.0+vr*0.12*(1.0-metal);
+    // 釉だまり（へこみ・段の溝・見込みの底）は濃く艶やかに、縁や稜線は薄く素地が透ける
+    float fl=(uMode>3.5&&uMode<4.5)?0.0:((uMode>2.5&&uMode<3.5)?0.3:1.0);
+    float pool=clamp(vPool,0.0,1.0)*fl,brk=clamp(-vPool,0.0,1.0)*fl;
+    base=mix(base,pow(base,vec3(1.7))*1.1,pool*0.85);
+    gloss=mix(gloss,1.0,pool*0.6);
+    base=mix(base,mix(base,brkC,0.7),brk*0.45);
+    // 高台の上にできる釉の溜まり線
+    float bead=smoothstep(4.5,6.5,y)*(1.0-smoothstep(6.5,10.0,y))*(1.0-inner)*fl;
+    base*=1.0-0.3*bead;
     float foot=(1.0-inner)*(1.0-smoothstep(3.0,5.0,y));
     base=mix(base,vec3(0.55,0.36,0.24),foot);gloss*=1.0-foot;metal*=1.0-foot;
     vec3 R=reflect(-V,N);
@@ -394,7 +434,7 @@ void main(){
   gl_FragColor=vec4(col,1.0);
 }
 `;
-const SEG=64,PROF_MAX=200;
+const SEG=128,PROF_MAX=200;
 const COS=new Float32Array(SEG+1),SIN=new Float32Array(SEG+1);
 for(let j=0;j<=SEG;j++){const a=j/SEG*Math.PI*2;COS[j]=Math.cos(a);SIN[j]=Math.sin(a);}
 
@@ -407,11 +447,11 @@ function buildProfile(st){
   let ds=N;
   for(let k=N-1;k>=0;k--){if(r[k]-t[k]>0.5)ds=k;else break;}
   if(ds<N){
-    const riT=Math.max(0.3,r[N-1]-t[N-1]);
+    const riT=Math.max(0.3,r[N-1]-Math.max(1,t[N-1]));
     const cr=(rT-riT)/2,cxr=(rT+riT)/2,lipH=Math.min(cr,2.5);
     for(let i=1;i<=5;i++){const a=i/6*Math.PI;P.push([cxr+Math.cos(a)*cr,topY+Math.sin(a)*lipH,N-1,0]);}
     P.push([riT,topY,N-1,1]);
-    for(let k=N-1;k>=ds;k--)P.push([Math.max(0.3,r[k]-t[k]),(k+0.5)*lh,k,1]);
+    for(let k=N-1;k>=ds;k--)P.push([Math.max(0.3,r[k]-Math.max(1,t[k])),(k+0.5)*lh,k,1]);
     const yf=ds*lh;
     P.push([Math.max(0.3,r[ds]-t[ds]),yf,ds,1]);
     P.push([Math.max(0.3,r[ds]-t[ds])*0.5,yf,ds,1]);
@@ -437,7 +477,7 @@ function createRenderer(canvas,preserve){
   if(!vs||!fs)return null;
   const prog=gl.createProgram();gl.attachShader(prog,vs);gl.attachShader(prog,fs);gl.linkProgram(prog);
   if(!gl.getProgramParameter(prog,gl.LINK_STATUS)){console.error(gl.getProgramInfoLog(prog));return null;}
-  const A={pos:gl.getAttribLocation(prog,'aPos'),nor:gl.getAttribLocation(prog,'aNor'),aux:gl.getAttribLocation(prog,'aAux')};
+  const A={pos:gl.getAttribLocation(prog,'aPos'),nor:gl.getAttribLocation(prog,'aNor'),aux:gl.getAttribLocation(prog,'aAux'),pool:gl.getAttribLocation(prog,'aPool')};
   const U={};
   ['uVP','uEye','uRot','uBlur','uHeat','uMode','uTime','uSeed','uKind','uBaseR','uTopY','uWet'].forEach(n=>U[n]=gl.getUniformLocation(prog,n));
   // ろくろ（静的メッシュ）
@@ -450,10 +490,10 @@ function createRenderer(canvas,preserve){
   ];
   const wv=[],wi=[];
   bands.forEach(b=>{
-    const base=wv.length/9;
+    const base=wv.length/10;
     b.forEach(p=>{
       const l=Math.hypot(p[2],p[3]);
-      for(let j=0;j<=SEG;j++)wv.push(p[0]*COS[j],p[1],p[0]*SIN[j],p[2]/l*COS[j],p[3]/l,p[2]/l*SIN[j],j/SEG,p[1],0);
+      for(let j=0;j<=SEG;j++)wv.push(p[0]*COS[j],p[1],p[0]*SIN[j],p[2]/l*COS[j],p[3]/l,p[2]/l*SIN[j],j/SEG,p[1],0,0);
     });
     for(let j=0;j<SEG;j++){const a=base+j,c=base+SEG+1+j;wi.push(a,c,a+1,a+1,c,c+1);}
   });
@@ -462,25 +502,52 @@ function createRenderer(canvas,preserve){
   const wCount=wi.length;
   // 粘土（動的メッシュ）
   const cVB=gl.createBuffer(),cIB=gl.createBuffer();
-  const vbuf=new Float32Array(PROF_MAX*(SEG+1)*9);
+  const vbuf=new Float32Array(PROF_MAX*(SEG+1)*10);
   let lastP=-1,idxCount=0;
   function bindAttribs(){
-    gl.enableVertexAttribArray(A.pos);gl.vertexAttribPointer(A.pos,3,gl.FLOAT,false,36,0);
-    gl.enableVertexAttribArray(A.nor);gl.vertexAttribPointer(A.nor,3,gl.FLOAT,false,36,12);
-    gl.enableVertexAttribArray(A.aux);gl.vertexAttribPointer(A.aux,3,gl.FLOAT,false,36,24);
+    gl.enableVertexAttribArray(A.pos);gl.vertexAttribPointer(A.pos,3,gl.FLOAT,false,40,0);
+    gl.enableVertexAttribArray(A.nor);gl.vertexAttribPointer(A.nor,3,gl.FLOAT,false,40,12);
+    gl.enableVertexAttribArray(A.aux);gl.vertexAttribPointer(A.aux,3,gl.FLOAT,false,40,24);
+    gl.enableVertexAttribArray(A.pool);gl.vertexAttribPointer(A.pool,1,gl.FLOAT,false,40,36);
   }
-  function uploadClay(st,theta){
+  function uploadClay(st,theta,warp){
     const P=buildProfile(st),np=Math.min(P.length,PROF_MAX);
+    // 見た目だけの歪み（物理・価格には影響しない）。軸ブレの大きい層と高回転ほど断面が楕円・三角にゆがむ。
+    // プレイ中は出さず（ろくろの見た目はそのまま）、焼成で現れる
+    const lob=clamp(warp||0,0,1),rf=clamp(Math.log(Math.max(st.rpmMax||RPM_MIN,RPM_MIN)/RPM_MIN)/Math.log(RPM_MAX/RPM_MIN),0,1);
+    const amp=new Float32Array(np),pool=new Float32Array(np);
+    for(let i=0;i<np;i++){
+      const k=P[i][2],rel=st.off[k]/Math.max(4,st.r[k]);
+      amp[i]=lob*Math.min(0.4,rel*0.55+rel*rel*0.3+rf*rf*0.06+(st.collapsed?0.1:0));
+      // 断面の凹凸：外側は半径の谷、内側は半径の山に釉がたまる。正=たまり、負=縁で薄くなる
+      if(i>0&&i<np-1&&P[i-1][3]===P[i][3]&&P[i+1][3]===P[i][3]){
+        const c=((P[i-1][0]+P[i+1][0])/2-P[i][0])/Math.max(0.8,st.lh);
+        pool[i]=clamp((P[i][3]?-c:c)*1.2,-1,1);
+      }
+    }
+    // 見込みの底（内側の最後の数点）にたまる
+    for(let i=np-1,n=0;i>=0&&n<4;i--,n++){if(P[i][3])pool[i]=Math.max(pool[i],0.8-n*0.15);}
+    const po=new Float32Array(np);   // 3点平均でならす
+    for(let i=0;i<np;i++)po[i]=(pool[Math.max(0,i-1)]+pool[i]*2+pool[Math.min(np-1,i+1)])/4;
     let o=0;
     for(let i=0;i<np;i++){
       const p=P[i],pp=P[Math.max(0,i-1)],pn=P[Math.min(np-1,i+1)];
       let nr=pn[1]-pp[1],ny=-(pn[0]-pp[0]);const l=Math.hypot(nr,ny)||1;nr/=l;ny/=l;
       const k=p[2],ov=st.off[k],pv=st.ph[k]+theta;
       const ox=ov*Math.cos(pv),oz=ov*Math.sin(pv);
+      const am=amp[i],c2=st.ph[k]*1.3,c3=-st.ph[k]*2.1+1.7;
       for(let j=0;j<=SEG;j++){
-        vbuf[o++]=ox+p[0]*COS[j];vbuf[o++]=p[1];vbuf[o++]=oz+p[0]*SIN[j];
-        vbuf[o++]=nr*COS[j];vbuf[o++]=ny;vbuf[o++]=nr*SIN[j];
-        vbuf[o++]=j/SEG;vbuf[o++]=p[1];vbuf[o++]=p[3];
+        const m=j/SEG*Math.PI*2-theta;
+        let rr=p[0],tq=0;
+        if(am>0){
+          const w=1+am*(0.65*Math.cos(2*m+c2)+0.35*Math.cos(3*m+c3));
+          rr=p[0]*w;tq=-am*(1.3*Math.sin(2*m+c2)+1.05*Math.sin(3*m+c3))/w;   // (dr/dφ)/r
+        }
+        vbuf[o++]=ox+rr*COS[j];vbuf[o++]=p[1];vbuf[o++]=oz+rr*SIN[j];
+        // 法線：回転体の法線を、周方向の傾き分だけ倒す
+        const nx=nr*(COS[j]+tq*SIN[j]),nz=nr*(SIN[j]-tq*COS[j]),nl=Math.hypot(nx,ny,nz)||1;
+        vbuf[o++]=nx/nl;vbuf[o++]=ny/nl;vbuf[o++]=nz/nl;
+        vbuf[o++]=j/SEG;vbuf[o++]=p[1];vbuf[o++]=p[3];vbuf[o++]=po[i];
       }
     }
     gl.bindBuffer(gl.ARRAY_BUFFER,cVB);
@@ -518,7 +585,7 @@ function createRenderer(canvas,preserve){
       gl.drawElements(gl.TRIANGLES,wCount,gl.UNSIGNED_SHORT,0);
     }
     gl.uniform1f(U.uKind,0);
-    uploadClay(o.st,o.theta);
+    uploadClay(o.st,o.theta,o.warp);
     bindAttribs();
     gl.drawElements(gl.TRIANGLES,idxCount,gl.UNSIGNED_SHORT,0);
   }
@@ -1292,7 +1359,8 @@ function render(){
   if(s.phase==='result'&&s.revealT>0.8)return;
   if(R){
     R.draw({st:s,theta:s.theta,cam,w:glCv.width,h:glCv.height,blur:s.phase==='play'?Math.pow(s.rpmF,1.3):0,
-      heat:s.phase==='play'?0:clamp(s.fireT/0.4,0,1),mode:(s.singular||s.zone)?4:0,time:T,seed:1.37,wheel:true,wet:1});
+      heat:s.phase==='play'?0:clamp(s.fireT/0.4,0,1),mode:(s.singular||s.zone)?4:0,time:T,seed:1.37,wheel:true,wet:1,
+      warp:s.phase==='play'?0:clamp(s.fireT/0.4,0,1)});
   }
   fx.clearRect(0,0,W,H);
   if(!R){drawWheel2D();drawClay2D();}
@@ -1395,7 +1463,12 @@ const GLAZE={
   sing:{code:4,d:[10,10,10],m:[120,80,200],l:[255,240,200],gloss:0.55,inner:'#000',name:'虹彩金属釉（解析不能）'},
   oribe:{code:5,d:[22,52,26],m:[58,118,56],l:[150,196,120],gloss:0.4,inner:'#1d3a1f',name:'織部釉'},
   shino:{code:6,d:[170,150,132],m:[232,220,204],l:[255,250,242],gloss:0.25,inner:'#a8907a',name:'志野釉'},
-  tsuchi:{code:7,d:[64,36,20],m:[138,86,50],l:[196,140,94],gloss:0.15,inner:'#3a200f',name:'自然釉（灰被り）'}
+  tsuchi:{code:7,d:[64,36,20],m:[138,86,50],l:[196,140,94],gloss:0.15,inner:'#3a200f',name:'自然釉（灰被り）'},
+  yuteki:{code:8,d:[6,5,6],m:[22,18,16],l:[150,150,156],gloss:0.5,inner:'#050405',name:'油滴天目釉'},
+  shinsha:{code:9,d:[90,8,12],m:[160,26,26],l:[200,190,180],gloss:0.45,inner:'#4a0a10',name:'辰砂釉'},
+  ruri:{code:10,d:[8,18,76],m:[26,56,148],l:[120,150,215],gloss:0.5,inner:'#0a1640',name:'瑠璃釉'},
+  kiseto:{code:11,d:[120,96,44],m:[196,170,96],l:[230,214,160],gloss:0.15,inner:'#6a5424',name:'黄瀬戸釉'},
+  kohiki:{code:12,d:[150,140,128],m:[232,228,216],l:[250,248,242],gloss:0.15,inner:'#9a8e80',name:'粉引'}
 };
 function idxStat(k,m,f){
   const x=v=>'×'+v.toFixed(1);
@@ -1425,9 +1498,11 @@ function appraise(f,m){
   else if(m.wob>0.1||m.bumps>=2)glaze='oribe';
   else if(m.aspect<0.6)glaze='shino';
   else glaze='tsuchi';
+  const VAR={yohen:['yohen','yuteki'],seiji:['seiji','ruri','shinsha'],shino:['shino','kohiki'],tsuchi:['tsuchi','kiseto']};
+  if(VAR[glaze])glaze=pick(VAR[glaze],'g');
   const sh=shapeEval(m);
   const t3=sh.top.map(t=>t.d);
-  const GLAZE_N={yohen:'曜変天目',seiji:'青磁',oribe:'織部',shino:'志野',tsuchi:'灰被',koge:'黒焦',sing:''};
+  const GLAZE_N={yohen:'曜変天目',yuteki:'油滴天目',seiji:'青磁',ruri:'瑠璃',shinsha:'辰砂',oribe:'織部',shino:'志野',kohiki:'粉引',tsuchi:'灰被',kiseto:'黄瀬戸',koge:'黒焦',sing:''};
   const MID={tall:'高継',wide:'大ぶり',thin:'極薄手',waist:'括れ',flare:'朝顔形',closed:'窄口',bulge:'胴張',flat:'平造',slender:'細口',ridge:'鎬文',twist:'歪み'};
   const KIND={tall:'長頸壺',wide:'大鉢',thin:'茶碗',waist:'徳利',flare:'深鉢',closed:'壺',bulge:'大甕',flat:'平皿',slender:'鶴首花入',ridge:'段花入',twist:'沓茶碗'};
   const SHAPE_COMMENT={
@@ -1529,7 +1604,7 @@ function drawVessel3D(g,f,cx,baseY,maxW,maxH,glaze,seed){
   c.ty=Ht*0.5;
   c.D=Math.max((Ht*1.12+ext*0.6)/2/tanY/0.92,ext*1.15/(tanY*c.aspect));
   camUpdateVP(c);
-  r2.draw({st:f,theta:0.6,cam:c,w,h,blur:0,heat:0,mode:GLAZE[glaze].code,time:(seed%997)/10,seed:(seed%1000)/37,wheel:false,wet:0.35});
+  r2.draw({st:f,theta:0.6,cam:c,w,h,blur:0,heat:0,mode:GLAZE[glaze].code,time:(seed%997)/10,seed:(seed%1000)/37,wheel:false,wet:0.35,warp:1});
   const b=projectWith(c,0,0,0,w,h);
   const tp=projectWith(c,0,Ht,0,w,h);
   const sd=projectWith(c,ext,Ht*0.5,0,w,h);
