@@ -823,6 +823,7 @@ function newState(){
   return {r,t,off,ph,sup:new Float32Array(N),A0:A,lh:LH0,phase:'play',started:false,elapsed:0,rpm:RPM_MIN,rpmF:0,rpmMax:RPM_MIN,
     theta:0,collapsed:false,collapseT:0,collapseReason:'',singular:false,chaos:0,res:0,zone:false,zoneTime:0,lastStop:0,bonus:false,check8:false,
     priceTarget:p0,logD:Math.log10(p0),lastPing:Math.log10(p0),lastCoinT:0,q:0,wob:0,avgOff:0,m:null,
+    peakPrice:p0,collapseTime:null,collapseRpm:null,
     fireT:0,resultShown:false,shake:0,revealT:0,landed:false,stampStart:0,blobbing:false,lastTick:0,final:null};
 }
 
@@ -1041,7 +1042,8 @@ function checkCollapse(){
 }
 function collapse(reason){
   const s=S;
-  s.collapsed=true;s.collapseReason=reason;s.collapseT=0;s.shake=16;s.chaos=0;
+  s.collapsed=true;s.collapseReason=reason;s.collapseT=0;
+  s.collapseTime=Math.round(s.elapsed*10)/10;s.collapseRpm=Math.round(s.rpm);s.shake=16;s.chaos=0;
   sfx.crash();
   const Ht=s.lh*N;
   for(let i=0;i<40;i++){
@@ -1140,6 +1142,7 @@ function simStep(dt,inputs){
   if(touched&&!s.started)startTimer();
   physics(dt,touched);
   computePrice(dt);
+  if(!s.collapsed)s.peakPrice=Math.max(s.peakPrice,roundSig(s.priceTarget,3));
   s.zone=inZone(s);
   if(s.zone||s.bonus)s.zoneTime+=dt;
 }
@@ -1188,7 +1191,8 @@ function fire(){
   if(fr.sing)goSingular();
   const fp=fr.price;
   s.final={price:fp,r:Float32Array.from(s.r),t:Float32Array.from(s.t),off:Float32Array.from(s.off),ph:Float32Array.from(s.ph),
-    lh:s.lh,rpm:s.rpm,rpmMax:Math.max(s.rpmMax,s.rpm),collapsed:s.collapsed,singular:s.singular,reason:s.collapseReason,q:s.q,chaos:s.chaos,theta:s.theta};
+    lh:s.lh,rpm:s.rpm,rpmMax:Math.max(s.rpmMax,s.rpm),collapsed:s.collapsed,singular:s.singular,reason:s.collapseReason,q:s.q,chaos:s.chaos,theta:s.theta,
+    peakPrice:s.peakPrice,collapseTime:s.collapseTime,collapseRpm:s.collapseRpm};
   sfx.explosion();
   shojiClose(false);shojiEl.classList.add('glow');
   s.shake=20;
@@ -1413,7 +1417,6 @@ function appraise(f,m){
   const seed=hashStr([m.Htot.toFixed(1),m.maxR.toFixed(1),m.minR.toFixed(1),m.wob.toFixed(3),Math.round(f.rpmMax),f.price].join('|'));
   const pick=(arr,salt)=>arr[hashStr(seed+':'+salt)%arr.length];
   const hollow=m.depthFrac>0.15;
-  const man=v=>v>=10000?(Math.round(v/10000)+'万'):(v>=1000?(Math.round(v/1000)+'千'):String(Math.round(v)));
   let glaze;
   if(f.singular)glaze='sing';
   else if(f.collapsed)glaze='koge';
@@ -1424,55 +1427,54 @@ function appraise(f,m){
   else glaze='tsuchi';
   const sh=shapeEval(m);
   const t3=sh.top.map(t=>t.d);
-  const adj=d=>d.k==='thin'?('厚さ'+(m.minT===null?'?':m.minT.toFixed(1))+'mmの'):d.A;
-  let kind,A,B;
-  if(f.collapsed&&!f.singular){
-    kind=m.Htot<60?'灰皿':'泥塊';
-    A=f.rpmMax>=20000?'遠心力でねじれた':'自重に敗れた';
-    B='虚無の';
-  }else if(f.singular){
-    kind=t3[0].noun;A=man(f.rpmMax)+'回転の';B='暴走';
-  }else if(sh.score<0.2){
-    kind=hollow?'湯呑':'泥塊';
-    A=pick(['静寂を纏う','端正なる','素朴なる','名もなき'],'a');
-    B=pick(['信楽','備前','伊賀'],'b');
-  }else{
-    kind=t3[0].noun;A=adj(t3[1]);B=t3[2].B;
-  }
-  const name=A+B+kind;
-  const shapeLabel=t3.map(d=>d.n).join('・');
-  let rank;
-  if(f.singular)rank=singRank(f.price);
-  else if(f.collapsed)rank=f.rpmMax>=20000?'遠心力の犠牲者':'ただの泥塊';
-  else if(f.price>=1e8)rank='人間国宝';
-  else if(f.price>=1e7)rank='重要文化財';
-  else if(f.price>=1e6)rank='名品';
-  else if(f.price>=1e4)rank='民芸品';
-  else rank='ただの泥塊';
-  const COMMENT={
-    '人間国宝':'一切の迷いなき轆轤目。国の宝として永久保存を推奨する。',
-    '重要文化財':'後世に伝えるべき造形美。美術館級の逸品である。',
-    '名品':'確かな手応えのある佳品。床の間映え必至。',
-    '民芸品':'素朴な味わい。道の駅で静かに輝くだろう。',
-    'ただの泥塊':'土に還ることを推奨する。',
-    '遠心力の犠牲者':'遠心力に魂ごと持っていかれた。合掌。',
-    '前衛の特異点':'物理法則を超越した造形。美術史が書き換わった。',
-    '神域の特異点':'人の手が届いてよい領域ではない。直ちに封印を推奨する。',
-    '創世の特異点':'この器から新たな宇宙が始まった。鑑定不能につき仮額とする。'
-  };
-  let sub='（税込・桐箱付）';
-  if(f.collapsed&&!f.singular)sub='（産業廃棄物）';
-  else if(f.singular)sub='（前衛芸術の特異点）';
-  else if(f.price<1e4)sub='（ほぼ土代）';
-  const serial=String(seed%1000000).padStart(6,'0');
+  const GLAZE_N={yohen:'曜変天目',seiji:'青磁',oribe:'織部',shino:'志野',tsuchi:'灰被',koge:'黒焦',sing:''};
+  const MID={tall:'高継',wide:'大ぶり',thin:'極薄手',waist:'括れ',flare:'朝顔形',closed:'窄口',bulge:'胴張',flat:'平造',slender:'細口',ridge:'鎬文',twist:'歪み'};
+  const KIND={tall:'長頸壺',wide:'大鉢',thin:'茶碗',waist:'徳利',flare:'深鉢',closed:'壺',bulge:'大甕',flat:'平皿',slender:'鶴首花入',ridge:'段花入',twist:'沓茶碗'};
   const SHAPE_COMMENT={
-    tall:'天を突く危うい均衡。',wide:'大地を覆う圧倒的な広がり。',thin:'光が透ける極限の薄さ。',
-    waist:'息を呑むくびれの妙。',flare:'天へ開く大胆な口造り。',closed:'秘密を閉じ込めた口元。',
-    bulge:'豊かに張った胴の量感。',flat:'地を這う潔い低さ。',slender:'針のごとき細身の緊張。',
-    ridge:'波打つ稜線の律動。',twist:'三半規管を揺さぶる歪み。'
+    tall:'器高の伸びに破綻がない。',wide:'口径の張りが堂々としている。',thin:'器壁は光を透かすほどに薄い。',
+    waist:'胴の括れに緊張感がある。',flare:'口縁の開きに迷いがない。',closed:'口の窄まりが端正である。',
+    bulge:'胴の張りに量感がある。',flat:'低く据わった姿に品格がある。',slender:'細身の立ち姿に緊張感がある。',
+    ridge:'鎬の段に律動がある。',twist:'歪みを景色として成立させている。'
   };
-  const comment=(sh.score>=0.2?SHAPE_COMMENT[t3[0].k]:'')+COMMENT[rank];
-  return {seed,glaze,kind,name,rank,comment,sub,serial,hollow,shapeLabel,top:t3,score:sh.score};
+  const COMMENT={
+    '人間国宝':'国の宝として永久保存を勧告する。',
+    '重要文化財':'文化財としての指定を検討されたい。',
+    '名品':'鑑賞に十分堪える。',
+    '民芸品':'日常の用に供して差し支えない。',
+    '等外':'美術品としての評価は見送る。'
+  };
+  const kind=KIND[t3[0].k];
+  let name,rank,comment,sub='（税込・桐箱付）',disposal='';
+  if(f.singular){
+    name='前例なきため未定';
+    rank=singRank(f.price);
+    comment='本件は当鑑定所の規定範囲を超えるため、参考価格とする。';
+    sub='（参考価格）';
+  }else if(f.collapsed){
+    const high=f.collapseRpm>=15000;
+    name=high?'器体破片（飛散）':'未成形土塊';
+    disposal=m.Htot<65?'灰皿として登録':(m.hollowFrac<0.2?'漬物石として登録':'土壌へ還付');
+    comment=f.peakPrice>=100000?'高回転域にて遠心力に耐えず損壊。惜しまれる。':'回転以前の問題である。';
+    rank=high?'鑑定不能':'産業廃棄物';
+    sub='（'+disposal+'）';
+  }else{
+    if(f.price>=1e8)rank='人間国宝';
+    else if(f.price>=1e7)rank='重要文化財';
+    else if(f.price>=1e6)rank='名品';
+    else if(f.price>=1e4)rank='民芸品';
+    else rank='等外';
+    if(sh.score<0.2){
+      name=pick(['信楽','備前','伊賀'],'b')+'素焼'+(hollow?'湯呑':'置物');
+      comment=COMMENT[rank];
+    }else{
+      name=GLAZE_N[glaze]+MID[t3[1].k]+kind;
+      comment=SHAPE_COMMENT[t3[0].k]+COMMENT[rank];
+    }
+    if(f.price<1e4)sub='（材料費相当）';
+  }
+  const shapeLabel=t3.map(d=>d.n).join('・');
+  const serial=String(seed%1000000).padStart(6,'0');
+  return {seed,glaze,kind,name,rank,comment,sub,disposal,serial,hollow,shapeLabel,top:t3,score:sh.score};
 }
 
 /* =========================================================
@@ -1819,6 +1821,7 @@ function updateResult(dt){
       // 静寂のタメ（音も表示も止める）
     }else{
       s.landed=true;s.stampStart=s.revealT;
+      xBtn.disabled=false;
       audioDuck(false);
       sfx.kaan();sfx.doon(0.13);
       cardCv.classList.remove('slam');void cardCv.offsetWidth;cardCv.classList.add('slam');
@@ -1829,7 +1832,7 @@ function updateResult(dt){
     renderCard(f.price,true,sp);
     if(sp>=1){
       s.blobbing=true;
-      cardCv.toBlob(b=>{resultBlob=b;xBtn.disabled=false;saveBtn.disabled=false;},'image/png');
+      cardCv.toBlob(b=>{resultBlob=b;saveBtn.disabled=false;},'image/png');
     }
   }
 }
@@ -1844,7 +1847,9 @@ function toast(msg){
 }
 function shareText(){
   const f=S.final,i=cardInfo;
-  return '【10秒暴走ろくろ 鑑定結果】\n銘「'+i.name+'」\n鑑定額 ¥'+fmt(f.price)+i.sub+'\n格付：'+i.rank+'\n#10秒暴走ろくろ';
+  // 途中で値が下がったときだけ、最高時価から矢印でつなぐ
+  const drop=!f.singular&&(f.collapsed||f.peakPrice>f.price*1.05);
+  return '「'+i.name+'」\n'+(drop?'¥'+fmt(f.peakPrice)+' → ':'')+'¥'+fmt(f.price)+'\n\n#10秒暴走ろくろ';
 }
 function shareX(){
   if(!S.final||!cardInfo)return;
@@ -2030,6 +2035,8 @@ fxCv.addEventListener('pointerup',pUp);
 fxCv.addEventListener('pointercancel',pUp);
 fxCv.addEventListener('lostpointercapture',pUp);
 xBtn.addEventListener('click',shareX);
+// 金額が出る前に鑑定書をタップしたら、待たずに落款まで飛ばす
+cardCv.addEventListener('pointerdown',()=>{const s=S;if(s.phase==='result'&&!s.landed&&s.revealT<1.4)s.revealT=1.4;});
 saveBtn.addEventListener('click',saveImg);
 retryBtn.addEventListener('click',doRetry);
 window.addEventListener('keydown',e=>{
