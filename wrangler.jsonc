@@ -1,0 +1,13 @@
+{
+  "name": "rokuro",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "./"
+  },
+  // アカウント名が入るURL（workers.dev / プレビューURL）は公開しない
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [
+    { "pattern": "rokuro.watasuru.com", "custom_domain": true }
+  ]
+}

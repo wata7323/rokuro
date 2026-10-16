@@ -11,15 +11,15 @@
 <meta property="og:site_name" content="10秒暴走ろくろ">
 <meta property="og:title" content="10秒暴走ろくろ：人間国宝か、時価4円の泥塊か">
 <meta property="og:description" content="指でなぞって10秒で器を挽く。回転は最大99,999rpm。焼き上がりの鑑定額は ¥9,999,999,999 か、¥4 の泥塊か。">
-<meta property="og:url" content="https://wata7323.github.io/rokuro/">
-<meta property="og:image" content="https://wata7323.github.io/rokuro/ogp.png">
+<meta property="og:url" content="https://rokuro.watasuru.com/">
+<meta property="og:image" content="https://rokuro.watasuru.com/ogp.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:locale" content="ja_JP">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="10秒暴走ろくろ：人間国宝か、時価4円の泥塊か">
 <meta name="twitter:description" content="指でなぞって10秒で器を挽く。鑑定額は ¥9,999,999,999 か、¥4 か。">
-<meta name="twitter:image" content="https://wata7323.github.io/rokuro/ogp.png">
+<meta name="twitter:image" content="https://rokuro.watasuru.com/ogp.png">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23ebe5d9'/%3E%3Cellipse cx='32' cy='50' rx='17' ry='3.5' fill='%231b1814' opacity='.25'/%3E%3Cpath d='M9 22 Q10 47 26 49 L38 49 Q54 47 55 22 Z' fill='%232a1a12'/%3E%3Cpath d='M12 28 Q20 34 32 33 Q44 34 52 28' stroke='%23c8371a' stroke-width='2.4' fill='none'/%3E%3Cellipse cx='32' cy='22' rx='23' ry='5' fill='%233b2618'/%3E%3Cellipse cx='32' cy='22' rx='19.5' ry='3.6' fill='%230d0806'/%3E%3Crect x='24' y='49' width='16' height='5' fill='%232a1a12'/%3E%3Crect x='46' y='4' width='14' height='14' fill='%23c8371a'/%3E%3C/svg%3E">
 <style>
 :root{--washi:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85 .55' numOctaves='3' seed='7' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .36  0 0 0 0 .29  0 0 0 0 .2  0 0 0 .11 0'/%3E%3C/filter%3E%3Crect width='100%' height='100%' filter='url(%23n)'/%3E%3C/svg%3E");--shippo:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56' viewBox='0 0 56 56'%3E%3Cg fill='none' stroke='%235b4630' stroke-opacity='.075' stroke-width='1'%3E%3Ccircle cx='0' cy='0' r='28'/%3E%3Ccircle cx='56' cy='0' r='28'/%3E%3Ccircle cx='0' cy='56' r='28'/%3E%3Ccircle cx='56' cy='56' r='28'/%3E%3Ccircle cx='28' cy='28' r='28'/%3E%3C/g%3E%3C/svg%3E");--paper:#ebe5d9;--ink:#1b1814;--sub:#6e6458;--line:rgba(27,24,20,.16);--shu:#c8371a;--shu2:#a12b12;
@@ -83,8 +83,18 @@ body.sing{--shippo:none;--paper:#121110;--ink:#f1ece4;--sub:#a49b8f;--line:rgba(
 #retry{background:#c8371a;color:#fff;border:0}
 #retry svg{width:30px !important;height:30px !important}
 #retry:active{background:#a12b12}
-#zbtn{position:relative;width:44px;height:44px;border:0;background:transparent;color:var(--ink);padding:9px;cursor:pointer;touch-action:manipulation;pointer-events:auto}
-#zbtn svg{width:26px;height:26px;display:block}
+.r4{gap:6px}
+#zbtn,#hbtn{position:relative;height:44px;border:0;background:transparent;color:var(--ink);padding:0 10px;cursor:pointer;touch-action:manipulation;pointer-events:auto;display:flex;align-items:center;gap:6px;font-family:var(--mincho);font-size:14px;font-weight:700;letter-spacing:.08em}
+#zbtn svg{width:22px;height:22px;display:block}
+#zbtn em{font-style:normal;font-size:12px;font-weight:600;color:var(--sub);letter-spacing:.02em}
+#hbtn{width:44px;padding:0;justify-content:center;font-size:20px}
+#zbtn::after,#hbtn::after{content:'';position:absolute;left:8px;right:8px;bottom:6px;height:1px;background:var(--line)}
+#howto{position:fixed;inset:0;z-index:46;display:none;flex-direction:column;align-items:center;justify-content:center;gap:min(24px,2.6vh);padding:20px 16px;background-color:rgba(235,229,217,.96);background-image:var(--washi),var(--shippo);color:#1b1814;text-align:center;touch-action:none;cursor:pointer}
+#howto .hw{display:flex;flex-direction:column;align-items:center;gap:min(8px,1vh)}
+#howto svg{width:120px;height:min(84px,10.5vh);display:block}
+#howto p{margin:0;font-family:var(--mincho);font-size:16px;font-weight:800;letter-spacing:.06em;line-height:1.5}
+#howto p small{display:block;font-size:12px;font-weight:600;color:#6e6458;letter-spacing:.04em}
+#howto .hgo{font-size:12px;color:#6e6458;letter-spacing:.2em;margin-top:6px}
 #rsbtn{position:relative;width:44px;height:44px;border:0;background:transparent;color:var(--ink);padding:8px;cursor:pointer;touch-action:manipulation;display:none;pointer-events:auto}
 #rsbtn svg{width:28px;height:28px;display:block}
 #rsbtn:active{color:var(--shu)}
@@ -92,7 +102,8 @@ body.sing{--shippo:none;--paper:#121110;--ink:#f1ece4;--sub:#a49b8f;--line:rgba(
 #zbtn.new i,#zbtn2.new i{display:block}
 #zbtn2{position:relative;background:#4a3d30;color:#f6f1e7;border:0}
 #zukan{position:fixed;inset:0;z-index:45;display:none;flex-direction:column;align-items:center;background-color:#ebe5d9;background-image:var(--washi),var(--shippo);color:#1b1814;overflow:hidden;touch-action:none;padding:calc(env(safe-area-inset-top,0px) + 10px) 10px calc(env(safe-area-inset-bottom,0px) + 8px)}
-.zh{display:flex;justify-content:center;align-items:baseline;gap:12px;margin-bottom:6px;flex:none}
+.zh{display:flex;justify-content:center;align-items:baseline;gap:12px;flex:none}
+.zs{font-size:11px;color:#6e6458;letter-spacing:.06em;margin:2px 0 8px;flex:none}
 .zh b{font-family:var(--mincho);font-size:22px;font-weight:800;letter-spacing:.2em}
 #zcount{font-family:var(--mincho);font-size:15px;color:#6e6458}
 #zclose{flex:none;width:52px;height:52px;border:0;background:transparent;color:#1b1814;padding:12px;cursor:pointer;margin-top:4px}
@@ -100,8 +111,10 @@ body.sing{--shippo:none;--paper:#121110;--ink:#f1ece4;--sub:#a49b8f;--line:rgba(
 @media (min-aspect-ratio:1/1){#zgrid{grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(3,minmax(0,1fr));max-width:760px}}
 .zc{text-align:center;display:flex;flex-direction:column;min-height:0;min-width:0}
 .zc img{flex:1;min-height:0;width:100%;object-fit:contain;display:block}
-.zc .zn{font-family:var(--mincho);font-size:11px;font-weight:800;line-height:1.3;margin-top:2px;min-height:1.3em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.zc .zn{font-family:var(--mincho);font-size:12px;font-weight:800;line-height:1.3;margin-top:2px;min-height:1.3em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .zc .zp{font-family:var(--mincho);font-size:11px;color:#c8371a;line-height:1.3;min-height:1.3em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.zc .zp.q{color:#8a7f72}
+.zc.off .zn{color:#8a7f72}
 .zc .zt{font-size:10px;color:#6e6458;letter-spacing:.06em;line-height:1.4}
 #shoji{position:fixed;inset:0;z-index:42;pointer-events:none;overflow:hidden}
 #shoji.closed{pointer-events:auto}
@@ -132,11 +145,12 @@ body.sing{--shippo:none;--paper:#121110;--ink:#f1ece4;--sub:#a49b8f;--line:rgba(
     <div id="price"><span class="yen">¥</span><span id="pnum">560</span></div>
     <div class="r3"><span id="rank">泥塊</span><span id="status"></span></div>
     <div class="r4">
-      <button id="zbtn" aria-label="図鑑"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 4.5h6.5a2 2 0 0 1 2 2V20a1.6 1.6 0 0 0-1.6-1.6H4z"/><path d="M20 4.5h-6.5a2 2 0 0 0-2 2V20a1.6 1.6 0 0 1 1.6-1.6H20z"/></svg><i></i></button>
+      <button id="hbtn" aria-label="遊び方">？</button>
+      <button id="zbtn" aria-label="図鑑"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 4.5h6.5a2 2 0 0 1 2 2V20a1.6 1.6 0 0 0-1.6-1.6H4z"/><path d="M20 4.5h-6.5a2 2 0 0 0-2 2V20a1.6 1.6 0 0 1 1.6-1.6H20z"/></svg>図鑑<em id="zbn"></em><i></i></button>
       <button id="rsbtn" aria-label="やり直す"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg></button>
     </div>
   </div>
-  <div id="hint"><b>粘土をなぞって成形開始（残り10.0秒）</b></div>
+  <div id="hint"><b>粘土をなぞって成形開始</b></div>
 </div>
 <div id="tline"></div>
 <div id="ctrl">
@@ -159,7 +173,17 @@ body.sing{--shippo:none;--paper:#121110;--ink:#f1ece4;--sub:#a49b8f;--line:rgba(
     <button id="retry" aria-label="次の粘土を回す（0秒リトライ）" title="次の粘土を回す（0秒リトライ）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg><span>もう一回</span></button>
   </div>
 </div>
-<div id="zukan"><div class="zh"><b>図鑑</b><span id="zcount"></span></div><div id="zgrid"></div><button id="zclose" aria-label="閉じる"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+<div id="zukan"><div class="zh"><b>図鑑</b><span id="zcount"></span></div><div class="zs">形ごとに、整った器の最高額を残す</div><div id="zgrid"></div><button id="zclose" aria-label="閉じる"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+<div id="howto">
+  <div class="hw"><svg viewBox="0 0 120 84" fill="none" stroke-linecap="round"><path d="M42 78c0-14 8-20 8-30s-6-14-6-20M78 78c0-14-8-20-8-30s6-14 6-20" stroke="#1b1814" stroke-width="2"/><path d="M30 80h60" stroke="#1b1814" stroke-width="2"/><circle cx="96" cy="48" r="7" stroke="#c8371a" stroke-width="2"/><path d="M86 48h-8M82 44l-4 4 4 4" stroke="#c8371a" stroke-width="2"/></svg>
+    <p>粘土の横をなぞる<small>指の位置まで、土が寄る</small></p></div>
+  <div class="hw"><svg viewBox="0 0 120 84" fill="none" stroke-linecap="round"><path d="M44 78V30M76 78V30" stroke="#1b1814" stroke-width="2"/><path d="M30 80h60" stroke="#1b1814" stroke-width="2"/><path d="M44 30h32" stroke="#1b1814" stroke-width="2" stroke-dasharray="3 4"/><circle cx="76" cy="22" r="7" stroke="#c8371a" stroke-width="2"/><path d="M76 12V2M72 6l4-4 4 4" stroke="#c8371a" stroke-width="2"/></svg>
+    <p>縁の上を、上へなぞる<small>薄く、高く伸びる</small></p></div>
+  <div class="hw"><svg viewBox="0 0 120 84" fill="none" stroke-linecap="round"><path d="M46 78c-8-10-10-22-6-34s6-12 6-18M74 78c8-10 10-22 6-34s-6-12-6-18" stroke="#1b1814" stroke-width="2"/><path d="M30 80h60" stroke="#1b1814" stroke-width="2"/><path d="M34 50h-14M24 46l-4 4 4 4" stroke="#8a7f72" stroke-width="2" stroke-dasharray="3 3"/><circle cx="93" cy="50" r="7" stroke="#c8371a" stroke-width="2"/><path d="M85 50h-1" stroke="#c8371a" stroke-width="2"/></svg>
+    <p>仕上げは、外から指を添える<small>触れている所は、遠心力で飛ばない</small></p></div>
+  <div class="hw"><p>整うほど回転が上がり、時価も上がる<small>崩れたら泥塊。10秒で焼き上がる</small></p></div>
+  <div class="hgo" id="hgo">触れて始める</div>
+</div>
 <div id="toast"></div>
 <script>
 (function(){
@@ -173,7 +197,7 @@ const H0=110;             // 初期高さ(mm)
 const LH0=H0/N;           // 初期層高
 const TMIN=0.2;           // 最小肉厚(mm)
 const RMIN=2;             // 最小半径(mm)
-const PUBLIC_URL = 'https://wata7323.github.io/rokuro/'; // 公開URL（unityroom等のiframe内で固定URLをシェアさせたい場合はここに記入）
+const PUBLIC_URL = 'https://rokuro.watasuru.com/'; // 公開URL（unityroom等のiframe内で固定URLをシェアさせたい場合はここに記入）
 const RPM_MIN=300,RPM_MAX=99999;
 const STOPS=[0,Math.log(5000/300)/Math.log(RPM_MAX/RPM_MIN),1];
 const PLAY_TIME=10;
@@ -1165,7 +1189,7 @@ function applyModel(mx,my,dyUp,dt){
   const jc=clamp(Math.round(jf),0,N-1);
   const tg=clamp(d,RMIN,150);
   let moved=0;
-  for(let k=jc-span*2;k<=jc+span*2;k++){if(k>=0&&k<N){const ws=Math.exp(-((k-jf)*(k-jf))/(8*sig*sig));s.sup[k]=Math.max(s.sup[k],0.5*ws);s.off[k]*=Math.exp(-dt*5*ws);}}
+  for(let k=jc-span*3;k<=jc+span*3;k++){if(k>=0&&k<N){const ws=Math.exp(-((k-jf)*(k-jf))/(18*sig*sig));s.sup[k]=Math.max(s.sup[k],0.75*ws);s.off[k]*=Math.exp(-dt*5*ws);}}
   for(let k=jc-span;k<=jc+span;k++){
     if(k<0||k>=N)continue;
     const w=Math.exp(-((k-jf)*(k-jf))/(2*sig*sig));
@@ -1204,7 +1228,7 @@ function physics(dt,touched){
     const thinF=clamp(14/(s.t[k]+4),0.5,2.5);
     const hF=0.5+k/N;
     const g=s.collapsed?0.25:1;
-    const free=1-0.9*s.sup[k];
+    const free=1-0.96*Math.max(s.sup[k],touched&&!s.collapsed?0.3:0);
     const dr=s.r[k]*F*0.3*thinF*hF*dt*g*free;
     s.r[k]+=dr;
     if(solid)s.t[k]=s.r[k];else s.t[k]=Math.max(TMIN,s.t[k]-dr*0.2);
@@ -1249,7 +1273,7 @@ function physics(dt,touched){
 function checkCollapse(){
   if(DBG.noCollapse||S.bonus)return;
   const s=S;let reason='';
-  if(s.lh*N>430)reason='高さの限界';
+  if(s.lh*N>450)reason='高さの限界';
   let above=0;
   if(!reason){
     for(let k=N-1;k>=0;k--){
@@ -1306,6 +1330,16 @@ function singPrice(sp,prog){
   return SING_MIN*Math.pow(SING_BASE/SING_MIN,(prog===undefined?1:prog)*Math.pow(sp,1.2));
 }
 function singRank(v){return v>=5e9?'創世の特異点':(v>=2e9?'神域の特異点':'前衛の特異点');}
+// 崩れた器の処分用途：0=土壌へ還付 1=漬物石 2=灰皿
+function scrapUse(m){return m.Htot<65?2:(m.hollowFrac<0.2?1:0);}
+// 崩れた器の値段。ふつうは¥4前後。高値まで育ってから崩れると破片に値が残る（用途・崩れた瞬間の回転でも少し動く。乱数なし）
+function scrapPrice(s,m){
+  const u=scrapUse(m);
+  const k=clamp((Math.log10(Math.max(s.peakPrice||1,1))-4)/5,0,1);
+  const w=((s.collapseRpm||0)%97)/96;
+  const p=[3,4,5][u]*(1+[15,40,80][u]*k*k*k)*(0.8+0.4*w);
+  return p<100?Math.max(1,Math.round(p)):Math.round(p/10)*10;
+}
 function computePrice(dt){
   const s=S;let p;
   const m=metrics(s);s.m=m;s.wob=m.wob;
@@ -1315,14 +1349,14 @@ function computePrice(dt){
     const prog=clamp((s.elapsed-BONUS_AT)/(PLAY_TIME-BONUS_AT),0,1);
     p=singPrice(singScore(s),prog)*(1+(Math.random()-0.5)*0.01);
   }else if(s.collapsed){
-    p=4;
+    p=scrapPrice(s,m);
   }else{
     s.q+=(sh.q-s.q)*(1-Math.exp(-dt/0.35));const q=s.q;
     const base=Math.pow(10,1.5+6.5*Math.pow(q,1.1));
     const jit=1+Math.sin(T*9.3)*0.015+Math.sin(T*23.1)*0.01+(Math.random()-0.5)*0.06*s.rpmF;
     p=base*priceMult(s.rpmF)*jit;
   }
-  s.priceTarget=Math.max(4,Math.round(p));
+  s.priceTarget=Math.max(s.collapsed?1:4,Math.round(p));
   const lt=Math.log10(s.priceTarget);
   const fast=(lt<s.logD-1)?16:7;
   s.logD+=(lt-s.logD)*(1-Math.exp(-dt*fast));
@@ -1337,7 +1371,7 @@ function computePrice(dt){
 function firePrice(s){
   if(s.bonus)return {price:Math.max(SING_MIN,roundSig(s.priceTarget,4)),sing:true};
   if(inZone(s)&&s.started&&(s.elapsed>=PLAY_TIME-1||DBG.ignoreTime))return {price:Math.max(SING_MIN,roundSig(singPrice(singScore(s)),4)),sing:true};
-  if(s.collapsed)return {price:4,sing:false};
+  if(s.collapsed)return {price:scrapPrice(s,metrics(s)),sing:false};
   return {price:Math.max(4,roundSig(s.priceTarget,4)),sing:false};
 }
 // 1フレーム分の進行（回転・入力・物理・価格）。inputs はモデル座標の指 [{x,y,dy}]
@@ -1402,7 +1436,7 @@ function startTimer(){
   const s=S;if(s.started)return;
   s.started=true;s.elapsed=0;
   hintEl.style.display='none';
-  $('zbtn').style.display='none';
+  $('zbtn').style.display='none';$('hbtn').style.display='none';
   $('rsbtn').style.display='block';
   sfx.click();
 }
@@ -1688,7 +1722,7 @@ function appraise(f,m){
   }else if(f.collapsed){
     const high=f.collapseRpm>=15000;
     name=high?'器体破片（飛散）':'未成形土塊';
-    disposal=m.Htot<65?'灰皿として登録':(m.hollowFrac<0.2?'漬物石として登録':'土壌へ還付');
+    disposal=['土壌へ還付','漬物石として登録','灰皿として登録'][scrapUse(m)];
     comment=f.peakPrice>=100000?'高回転域にて遠心力に耐えず損壊。惜しまれる。':'回転以前の問題である。';
     rank=high?'鑑定不能':'産業廃棄物';
     sub='（'+disposal+'）';
@@ -2041,6 +2075,7 @@ function showResult(){
   buildCard(s.final);
   tasResult(s.final,cardInfo);
   if(zRecord(s.final,cardInfo)){$('zbtn').classList.add('new');$('zbtn2').classList.add('new');}
+  zBadge();
   renderCard(0,false,0);
   resultEl.style.display='flex';resultEl.scrollTop=0;
 }
@@ -2202,19 +2237,21 @@ function hintProf(key){
   for(let i=0;i<20;i++){const u=i/19;R.push(z.r(u));X.push(z.x?z.x(u):0);}
   return {r:R,x:X,H:z.H};
 }
+const ZKIND={tall:'長頸壺',wide:'大鉢',thin:'茶碗',waist:'徳利',flare:'深鉢',closed:'壺',bulge:'大甕',flat:'平皿',slender:'鶴首花入',ridge:'段花入',twist:'沓茶碗'};
+const ZHOW={tall:'高く伸ばす',wide:'横に広げる',thin:'薄く挽く',waist:'胴を括る',flare:'口を開く',closed:'口をすぼめる',bulge:'胴を張る',flat:'低く平たく',slender:'細く高く',ridge:'段をつける',twist:'歪ませる'};
 function zOpen(){
   const d=zLoad();
   const grid=$('zgrid');grid.innerHTML='';
   let found=0;
   IDX.forEach(ix=>{
     const e=d[ix.k];if(e)found++;
-    const c=document.createElement('div');c.className='zc';
+    const c=document.createElement('div');c.className='zc'+(e?'':' off');
     const im=document.createElement('img');im.alt='';
     if(e&&e.img)im.src=e.img;
     else{const cv=document.createElement('canvas');cv.width=176;cv.height=220;drawSil(cv,e?e:hintProf(ix.k),e?'own':'hint');im.src=cv.toDataURL();}
     c.appendChild(im);
-    const nm=document.createElement('div');nm.className='zn';nm.textContent=e?e.name:'';c.appendChild(nm);
-    const p=document.createElement('div');p.className='zp';p.textContent=e?'¥'+fmt(e.price):'';c.appendChild(p);
+    const nm=document.createElement('div');nm.className='zn';nm.textContent=ZKIND[ix.k];c.appendChild(nm);
+    const p=document.createElement('div');p.className='zp'+(e?'':' q');p.textContent=e?'¥'+fmt(e.price):ZHOW[ix.k];c.appendChild(p);
     grid.appendChild(c);
   });
   $('zcount').textContent=found+' / '+IDX.length;
@@ -2222,6 +2259,17 @@ function zOpen(){
   $('zbtn').classList.remove('new');$('zbtn2').classList.remove('new');
 }
 function zClose(){$('zukan').style.display='none';}
+// 遊び方：最初の1回だけ自動で出す。以降は「？」から
+const HKEY='rokuro_howto_v1';
+function hOpen(first){$('hgo').textContent=first?'触れて始める':'触れて閉じる';$('howto').style.display='flex';}
+function hClose(){$('howto').style.display='none';try{localStorage.setItem(HKEY,'1');}catch(e){}}
+$('howto').addEventListener('pointerdown',e=>{e.stopPropagation();e.preventDefault();hClose();});
+$('hbtn').addEventListener('pointerdown',e=>{e.stopPropagation();});
+$('hbtn').addEventListener('click',()=>{if(S.phase==='play'&&!S.started)hOpen(false);});
+{let seen=false;try{seen=!!localStorage.getItem(HKEY);}catch(e){seen=true;}if(!seen)hOpen(true);}
+// 図鑑ボタンの件数
+function zBadge(){const d=zLoad();$('zbn').textContent=IDX.filter(ix=>d[ix.k]).length+'/'+IDX.length;}
+zBadge();
 $('zbtn').addEventListener('pointerdown',e=>{e.stopPropagation();});
 $('zbtn').addEventListener('click',()=>{if(S.phase==='play'&&!S.started)zOpen();});
 $('zbtn2').addEventListener('click',zOpen);
@@ -2257,7 +2305,7 @@ function retry(){
   resultEl.style.display='none';
   ctrlEl.style.visibility='visible';
   hintEl.style.display='block';
-  $('zbtn').style.display='block';
+  $('zbtn').style.display='flex';$('hbtn').style.display='flex';
   $('rsbtn').style.display='none';
   zClose();
   flashEl.style.opacity='0';
@@ -2326,7 +2374,7 @@ function tasControl(s,P,t,dt,K){
   for(let k=0;k<N;k++){const tg=Math.max(K.RMIN,tasProfile(P,k/(N-1)));err[k]=tg-s.r[k];}
   // 指1：背が足りず壁が厚いうちは引き上げ（必要な分だけ正確に薄くする）
   let fingers=P.nf||2;
-  // 高さの限界(430mm)には近づかない
+  // 高さの限界(450mm)には近づかない
   const HT=Math.min(P.H,405);
   if(Ht<HT-2&&avgT>Math.max(K.TMIN,P.T)*1.02){
     const need=Math.max(0.8,Math.max(K.TMIN,P.T)/avgT);
@@ -2585,7 +2633,7 @@ DBG.unlocked=/[?&](debug\b|tas=)/.test(location.search);
   let taps=[];
   window.addEventListener('pointerdown',e=>{
     if(!S||S.started||S.phase!=='play'||e.clientX>110||e.clientY>80)return;
-    if(e.target&&e.target.closest&&e.target.closest('button,#dbg-panel,#zukan,#result'))return;
+    if(e.target&&e.target.closest&&e.target.closest('button,#dbg-panel,#zukan,#result,#howto'))return;
     e.stopPropagation();e.preventDefault();
     const now=performance.now();
     taps=taps.filter(t=>now-t<1500);taps.push(now);
