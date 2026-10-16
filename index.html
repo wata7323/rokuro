@@ -1646,17 +1646,19 @@ function appraise(f,m){
   const seed=hashStr([m.Htot.toFixed(1),m.maxR.toFixed(1),m.minR.toFixed(1),m.wob.toFixed(3),Math.round(f.rpmMax),f.price].join('|'));
   const pick=(arr,salt)=>arr[hashStr(seed+':'+salt)%arr.length];
   const hollow=m.depthFrac>0.15;
+  // 釉薬：形の系統 × 最高回転数の帯で決める（乱数なし）。人間国宝級だけが曜変天目
+  //            5,000rpm未満   〜90,000rpm   90,000rpm以上
+  //  立つ形      灰被          織部          瑠璃
+  //  開く形      黄瀬戸        志野          青磁
+  //  丸い形      粉引          辰砂          油滴天目
+  const sh=shapeEval(m);
+  const FAM={tall:0,slender:0,waist:0,closed:0,wide:1,flat:1,flare:1,ridge:1};
+  const GM=[['tsuchi','oribe','ruri'],['kiseto','shino','seiji'],['kohiki','shinsha','yuteki']];
   let glaze;
   if(f.singular)glaze='sing';
   else if(f.collapsed)glaze='koge';
-  else if(f.rpmMax>=4500&&((m.minT!==null&&m.minT<3)||f.q>0.6))glaze='yohen';
-  else if(f.q>0.5)glaze='seiji';
-  else if(m.wob>0.1||m.bumps>=2)glaze='oribe';
-  else if(m.aspect<0.6)glaze='shino';
-  else glaze='tsuchi';
-  const VAR={yohen:['yohen','yuteki'],seiji:['seiji','ruri','shinsha'],shino:['shino','kohiki'],tsuchi:['tsuchi','kiseto']};
-  if(VAR[glaze])glaze=pick(VAR[glaze],'g');
-  const sh=shapeEval(m);
+  else if(f.price>=1e8)glaze='yohen';
+  else glaze=GM[sh.score<0.2?2:(FAM[sh.top[0].d.k]??2)][f.rpmMax<5000?0:(f.rpmMax<90000?1:2)];
   const t3=sh.top.map(t=>t.d);
   const GLAZE_N={yohen:'曜変天目',yuteki:'油滴天目',seiji:'青磁',ruri:'瑠璃',shinsha:'辰砂',oribe:'織部',shino:'志野',kohiki:'粉引',tsuchi:'灰被',kiseto:'黄瀬戸',koge:'黒焦',sing:''};
   const MID={tall:'高継',wide:'大ぶり',thin:'極薄手',waist:'括れ',flare:'朝顔形',closed:'窄口',bulge:'胴張',flat:'平造',slender:'細口',ridge:'鎬文',twist:'歪み'};
