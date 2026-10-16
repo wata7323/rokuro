@@ -1855,6 +1855,22 @@ function shareX(){
   if(!S.final||!cardInfo)return;
   const isHttp=/^https?:/.test(location.protocol);
   const shareUrl=PUBLIC_URL||(isHttp?location.href.split('#')[0]:'');
+  // スマホでは共有シートに鑑定書画像ごと渡す（Xを選べば画像付きの投稿画面になる）
+  const coarse=window.matchMedia&&window.matchMedia('(pointer:coarse)').matches;
+  if(coarse&&resultBlob&&navigator.canShare){
+    try{
+      const file=new File([resultBlob],'10秒暴走ろくろ_鑑定書_'+cardInfo.serial+'.png',{type:'image/png'});
+      if(navigator.canShare({files:[file]})){
+        navigator.share({files:[file],text:shareText()+(shareUrl?' '+shareUrl:'')}).catch(e=>{if(e&&e.name!=='AbortError')openIntent();});
+        return;
+      }
+    }catch(e){}
+  }
+  openIntent();
+}
+function openIntent(){
+  const isHttp=/^https?:/.test(location.protocol);
+  const shareUrl=PUBLIC_URL||(isHttp?location.href.split('#')[0]:'');
   const url='https://x.com/intent/tweet?text='+encodeURIComponent(shareText())+(shareUrl?'&url='+encodeURIComponent(shareUrl):'');
   try{
     if(resultBlob&&navigator.clipboard&&window.ClipboardItem){
