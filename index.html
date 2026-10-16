@@ -45,12 +45,28 @@ body.sing{--shippo:none;--paper:#121110;--ink:#f1ece4;--sub:#a49b8f;--line:rgba(
 #price.hot{color:var(--shu)}
 #price.dead{color:#8b8780}
 #price.dead::after{content:'';position:absolute;left:-2%;right:-2%;top:55%;height:.06em;background:var(--shu);transform:rotate(-3deg)}
-.r3{display:flex;justify-content:center;align-items:center;gap:10px;margin-top:4px;min-height:24px}
-.r4{display:flex;justify-content:center;height:44px;margin-top:2px}
-#rank{font-family:var(--mincho);font-weight:800;font-size:15px;letter-spacing:.14em;white-space:nowrap}
+/* 金額の下の2行
+   r3：肩書き｜音・やり直す。肩書きは決まった幅に右寄せで入れ、文字数が変わってもボタンが動かない
+   r4：開始前は 遊び方｜図鑑｜番付、プレイ中は知らせ（共鳴・特異点の気配 など） */
+.r3{display:grid;grid-template-columns:7.4em 1px auto auto;justify-content:center;align-items:center;column-gap:10px;margin-top:2px;height:40px}
+#rank{font-family:var(--mincho);font-weight:800;font-size:15px;letter-spacing:.14em;white-space:nowrap;text-align:right;overflow:hidden}
 #rank.hot{color:var(--shu)}
 #rank.dead{color:#8b8780}
-#status{font-size:12px;color:var(--sub);letter-spacing:.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60vw}
+.r3d{width:1px;height:18px;background:var(--line)}
+#sbtn,#rsbtn{height:40px;border:0;background:transparent;color:var(--ink);padding:0 6px;display:flex;align-items:center;gap:5px;cursor:pointer;touch-action:manipulation;pointer-events:auto;font-family:var(--mincho);font-size:13px;font-weight:700;letter-spacing:.06em;white-space:nowrap}
+#sbtn svg,#rsbtn svg{width:19px;height:19px;display:block;flex:none}
+#sbtn:active,#rsbtn:active{color:var(--shu)}
+#rsbtn{visibility:hidden}
+#sbtn .w{display:block}#sbtn .x{display:none}
+#sbtn.off{color:var(--sub)}#sbtn.off .w{display:none}#sbtn.off .x{display:block}
+.r4{display:flex;justify-content:center;align-items:center;height:40px;margin-top:4px}
+#hbtn,#zbtn,#bbtn{position:relative;height:34px;border:0;background:transparent;color:var(--ink);padding:0 14px;display:flex;align-items:center;gap:6px;cursor:pointer;touch-action:manipulation;pointer-events:auto;font-family:var(--mincho);font-size:13px;font-weight:700;letter-spacing:.08em;white-space:nowrap}
+#hbtn+#zbtn,#zbtn+#bbtn{box-shadow:inset 1px 0 0 var(--line)}
+#hbtn svg,#zbtn svg,#bbtn svg{width:18px;height:18px;display:block;flex:none}
+#zbtn em{font-style:normal;font-size:11px;font-weight:600;color:var(--sub);letter-spacing:.02em}
+#hbtn:active,#zbtn:active,#bbtn:active{color:var(--shu)}
+#status{font-size:12px;color:var(--sub);letter-spacing:.06em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:86vw}
+#status:empty{display:none}
 #hint{position:absolute;left:50%;top:var(--hintTop,140px);transform:translateX(-50%);text-align:center;pointer-events:none;width:max-content;max-width:90vw}
 #hint b{display:block;font-family:var(--mincho);font-size:17px;font-weight:800;letter-spacing:.06em;color:#f6f1e7;padding:9px 46px;background:linear-gradient(90deg,rgba(27,24,20,0),rgba(27,24,20,.86) 16%,rgba(27,24,20,.86) 84%,rgba(27,24,20,0));text-shadow:0 1px 2px rgba(0,0,0,.4)}
 #hint span{display:block;font-size:11px;color:var(--sub);margin-top:4px;line-height:1.65}
@@ -96,26 +112,12 @@ body.sing{--shippo:none;--paper:#121110;--ink:#f1ece4;--sub:#a49b8f;--line:rgba(
 #retry{background:#c8371a;color:#fff;border:0}
 #retry svg{width:30px !important;height:30px !important}
 #retry:active{background:#a12b12}
-.r4{gap:6px}
-#zbtn,#hbtn{position:relative;height:44px;border:0;background:transparent;color:var(--ink);padding:0 10px;cursor:pointer;touch-action:manipulation;pointer-events:auto;display:flex;align-items:center;gap:6px;font-family:var(--mincho);font-size:14px;font-weight:700;letter-spacing:.08em}
-#zbtn svg{width:22px;height:22px;display:block}
-#zbtn em{font-style:normal;font-size:12px;font-weight:600;color:var(--sub);letter-spacing:.02em}
-#hbtn{width:44px;padding:0;justify-content:center;font-size:20px}
-#zbtn::after,#hbtn::after{content:'';position:absolute;left:8px;right:8px;bottom:6px;height:1px;background:var(--line)}
 #howto{position:fixed;inset:0;z-index:46;display:none;flex-direction:column;align-items:center;justify-content:center;gap:min(24px,2.6vh);padding:20px 16px;background-color:rgba(235,229,217,.96);background-image:var(--washi),var(--shippo);color:#1b1814;text-align:center;touch-action:none;cursor:pointer}
 #howto .hw{display:flex;flex-direction:column;align-items:center;gap:min(8px,1vh)}
 #howto svg{width:120px;height:min(84px,10.5vh);display:block}
 #howto p{margin:0;font-family:var(--mincho);font-size:16px;font-weight:800;letter-spacing:.06em;line-height:1.5}
 #howto p small{display:block;font-size:12px;font-weight:600;color:#6e6458;letter-spacing:.04em}
 #howto .hgo{font-size:12px;color:#6e6458;letter-spacing:.2em;margin-top:6px}
-/* 音・やり直し：図鑑や番付と同じ見た目（アイコン＋文字、下線） */
-#rsbtn,#sbtn{position:relative;height:44px;border:0;background:transparent;color:var(--ink);padding:0 10px;display:flex;align-items:center;gap:6px;cursor:pointer;touch-action:manipulation;pointer-events:auto;font-family:var(--mincho);font-size:14px;font-weight:700;letter-spacing:.08em}
-#rsbtn{display:none}
-#rsbtn svg,#sbtn svg{width:20px;height:20px;display:block}
-#rsbtn::after,#sbtn::after{content:'';position:absolute;left:8px;right:8px;bottom:6px;height:1px;background:var(--line)}
-#rsbtn:active,#sbtn:active{color:var(--shu)}
-#sbtn .w{display:block}#sbtn .x{display:none}
-#sbtn.off{color:var(--sub)}#sbtn.off .w{display:none}#sbtn.off .x{display:block}
 #zbtn i,#zbtn2 i{position:absolute;right:8px;top:8px;width:8px;height:8px;background:var(--shu);display:none}
 #zbtn.new i,#zbtn2.new i{display:block}
 #zbtn2{position:relative;background:#4a3d30;color:#f6f1e7;border:0}
@@ -138,8 +140,6 @@ body.sing{--shippo:none;--paper:#121110;--ink:#f1ece4;--sub:#a49b8f;--line:rgba(
 #bnmsg{flex:none;min-height:1.3em;margin:-4px 0 6px;font-size:11px;color:#6e6458;font-family:var(--mincho)}
 #bnmsg.ng{color:#c8371a}
 #bclose{flex:none;width:52px;height:52px;border:0;background:transparent;color:#1b1814;padding:12px;cursor:pointer;margin-top:4px}
-#bbtn{position:relative;height:44px;border:0;background:transparent;color:var(--ink);padding:0 10px;cursor:pointer;touch-action:manipulation;pointer-events:auto;display:flex;align-items:center;font-family:var(--mincho);font-size:14px;font-weight:700;letter-spacing:.08em}
-#bbtn::after{content:'';position:absolute;left:8px;right:8px;bottom:6px;height:1px;background:var(--line)}
 #zukan{position:fixed;inset:0;z-index:45;display:none;flex-direction:column;align-items:center;background-color:#ebe5d9;background-image:var(--washi),var(--shippo);color:#1b1814;overflow:hidden;touch-action:none;padding:calc(env(safe-area-inset-top,0px) + 10px) 10px calc(env(safe-area-inset-bottom,0px) + 8px)}
 .zh{display:flex;justify-content:center;align-items:baseline;gap:12px;flex:none}
 .zs{font-size:11px;color:#6e6458;letter-spacing:.06em;margin:2px 0 8px;flex:none}
@@ -182,14 +182,16 @@ body.sing{--shippo:none;--paper:#121110;--ink:#f1ece4;--sub:#a49b8f;--line:rgba(
   <div id="hud">
     <div class="r1"><span>推定時価総額</span><span id="ttxt">残り 10.00</span></div>
     <div id="price"><span class="yen">¥</span><span id="pnum">560</span></div>
-    <div class="r3"><span id="rank">泥塊</span><span id="status"></span></div>
-    <!-- 肩書きの下の行。開始前は ？・図鑑・番付・音、プレイ中は 音・やり直す -->
-    <div class="r4">
-      <button id="hbtn" aria-label="遊び方">？</button>
-      <button id="zbtn" aria-label="図鑑"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 4.5h6.5a2 2 0 0 1 2 2V20a1.6 1.6 0 0 0-1.6-1.6H4z"/><path d="M20 4.5h-6.5a2 2 0 0 0-2 2V20a1.6 1.6 0 0 1 1.6-1.6H20z"/></svg>図鑑<em id="zbn"></em><i></i></button>
-      <button id="bbtn" aria-label="番付">番付</button>
+    <div class="r3">
+      <span id="rank">泥塊</span><span class="r3d"></span>
       <button id="sbtn" aria-label="音を切る"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path class="w" d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/><path class="x" d="M16 9.5l5 5M21 9.5l-5 5"/></svg>音</button>
       <button id="rsbtn" aria-label="やり直す"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg>やり直す</button>
+    </div>
+    <div class="r4">
+      <button id="hbtn" aria-label="遊び方"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.4a2.5 2.5 0 1 1 3.4 2.3c-.7.3-1 .8-1 1.5v.6"/><path d="M12 16.6v.2" stroke-width="2.2"/></svg>遊び方</button>
+      <button id="zbtn" aria-label="図鑑"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 4.5h6.5a2 2 0 0 1 2 2V20a1.6 1.6 0 0 0-1.6-1.6H4z"/><path d="M20 4.5h-6.5a2 2 0 0 0-2 2V20a1.6 1.6 0 0 1 1.6-1.6H20z"/></svg>図鑑<em id="zbn"></em><i></i></button>
+      <button id="bbtn" aria-label="番付"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M9 4h6v16H9zM3 10h6v10H3zM15 13h6v7h-6z"/></svg>番付</button>
+      <span id="status"></span>
     </div>
   </div>
   <div id="hint"><b>粘土をなぞって成形開始</b></div>
@@ -272,7 +274,7 @@ const ttxtEl=$('ttxt'),tlineEl=$('tline'),hintEl=$('hint');
 const ctrlEl=$('ctrl'),trackEl=$('track'),rpmvEl=$('rpmv'),multvEl=$('multv');
 const flashEl=$('flash'),resultEl=$('result'),cardCv=$('card'),cctx=cardCv.getContext('2d');
 const xBtn=$('xbtn'),saveBtn=$('save'),retryBtn=$('retry'),toastEl=$('toast');
-const r4El=document.querySelector('.r4');
+const r3El=document.querySelector('.r3');   // 肩書き・音・やり直すの行（画面の揺れを打ち消す）
 
 /* =========================================================
    行列ユーティリティ
@@ -1500,7 +1502,7 @@ function startTimer(){
   s.started=true;s.elapsed=0;
   hintEl.style.display='none';
   $('zbtn').style.display='none';$('hbtn').style.display='none';$('bbtn').style.display='none';
-  $('rsbtn').style.display='flex';
+  $('rsbtn').style.visibility='visible';
   sfx.click();
 }
 function fire(){
@@ -1519,7 +1521,7 @@ function fire(){
   s.shake=20;
   pointers.clear();
   ctrlEl.style.visibility='hidden';
-  $('rsbtn').style.display='none';
+  $('rsbtn').style.visibility='hidden';
   hintEl.style.display='none';
   const c=project(0,s.lh*N*0.5,0);
   for(let i=0;i<70;i++){
@@ -2514,7 +2516,7 @@ function retry(){
   ctrlEl.style.visibility='visible';
   hintEl.style.display='block';
   $('zbtn').style.display='flex';$('hbtn').style.display='flex';$('bbtn').style.display='flex';
-  $('rsbtn').style.display='none';
+  $('rsbtn').style.visibility='hidden';
   zClose();
   flashEl.style.opacity='0';
   document.body.className='';
@@ -2891,8 +2893,8 @@ function update(dt){
   // 画面の揺れ。ボタンの行（音・やり直す など）だけは逆に動かして、押す場所が揺れないようにする
   if(amp>0.3){
     const dx=((Math.random()-0.5)*amp*2).toFixed(1),dy=((Math.random()-0.5)*amp*2).toFixed(1);
-    stageEl.style.transform='translate('+dx+'px,'+dy+'px)';r4El.style.transform='translate('+(-dx)+'px,'+(-dy)+'px)';
-  }else if(stageEl.style.transform){stageEl.style.transform='';r4El.style.transform='';}
+    stageEl.style.transform='translate('+dx+'px,'+dy+'px)';r3El.style.transform='translate('+(-dx)+'px,'+(-dy)+'px)';
+  }else if(stageEl.style.transform){stageEl.style.transform='';r3El.style.transform='';}
   audioMotor(s.rpmF,s.phase==='play',Math.min(1,s.wob*3));
   if(s.phase!=='play')audioClay(0,0,0);
 }
