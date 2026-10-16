@@ -463,6 +463,68 @@ function buildProfile(st){
   return P;
 }
 
+// 付属：形の第1指標で決まる（中が空いていて、形として成立しているときだけ）
+const ATTACH={flare:'katakuchi',wide:'katakuchi',flat:'rinka',ridge:'rinka',bulge:'suichu',closed:'mimi',tall:'mimi',waist:'tede'};
+function formAttach(m,sh){
+  if(!sh||sh.score<0.2||m.depthFrac<=0.15)return '';
+  return ATTACH[sh.top[0].d.k]||'';
+}
+// 焼成で現れる形（物理の結果だけから決める）：
+//  傾き・へたり … 各段の軸ブレの向きと量、薄くて背の高い器ほど大きい
+//  崩壊 … 理由ごとに 首折れ=上半分が倒れる／遠心力で飛散=縁が裂けて開く／高さの限界=蛇腹に潰れる／その他=大きく傾く
+function vesselForm(st){
+  const key=st.lh+'|'+st.r[N-1]+'|'+st.off[N-1]+'|'+st.collapsed+'|'+st.singular;
+  if(st._form&&st._formKey===key)return st._form;
+  const H=st.lh*N;let sx=0,sz=0,rel=0,maxR=0,tS=0,tn=0;
+  for(let k=0;k<N;k++){
+    const w=k/N;sx+=st.off[k]*Math.cos(st.ph[k])*w;sz+=st.off[k]*Math.sin(st.ph[k])*w;
+    rel+=st.off[k]/Math.max(4,st.r[k]);maxR=Math.max(maxR,st.r[k]);
+    if(k>=3&&st.r[k]-st.t[k]>0.5){tS+=st.t[k];tn++;}
+  }
+  rel/=N;
+  const avgT=tn?tS/tn:20,tall=H/(2*Math.max(1,maxR));
+  const slump=clamp((tall-1.3)*0.12,0,0.25)*clamp((6-avgT)/5,0,1);
+  const f={H,dir:Math.atan2(sz,sx),A:clamp(rel*1.4+slump,0,0.55),col:'',att:'',brkY:0,brkA:0,maxR,reach:0};
+  const reason=st.collapsed&&!st.singular?(st.reason||st.collapseReason||'崩壊'):'';
+  if(reason){
+    f.col=reason==='首折れ'?'neck':(reason==='遠心力で飛散'?'tear':(reason==='高さの限界'?'fold':'lean'));
+    if(f.col==='lean')f.A=Math.max(f.A,0.6);
+    if(f.col==='fold')f.A=Math.max(f.A,0.18);
+    if(f.col==='neck'){f.brkY=H*0.45;f.brkA=1.15;}
+  }else{
+    const m=metrics(st);f.att=formAttach(m,shapeEval(m));
+  }
+  // 鑑定書の画角に入れるための張り出し
+  let rc=H*Math.sin(f.A)*0.8;
+  if(f.col==='neck')rc+=(H-f.brkY)*Math.sin(f.brkA);
+  if(f.att==='suichu'||f.att==='tede')rc+=clamp(H*0.25,16,55);
+  if(f.att==='suichu')rc=Math.max(rc,clamp(H*0.5,25,85)*0.8);
+  if(f.att==='mimi')rc+=clamp(H*0.07,5,16);
+  if(f.att==='katakuchi')rc+=maxR*0.25;
+  f.reach=rc;
+  st._form=f;st._formKey=key;
+  return f;
+}
+// 水平軸まわりの回転（向き a の鉛直面内で、高さ yp を支点に α だけ倒す）
+function formRot(v,o,a,al,yp){
+  if(!al)return;
+  const ca=Math.cos(a),sa=Math.sin(a),cb=Math.cos(al),sb=Math.sin(al);
+  const x=v[o],y=v[o+1]-yp,z=v[o+2];
+  const u=x*ca+z*sa,w=-x*sa+z*ca;
+  const u2=u*cb+y*sb,y2=y*cb-u*sb;
+  v[o]=u2*ca-w*sa;v[o+1]=y2+yp;v[o+2]=u2*sa+w*ca;
+  const nx=v[o+3],ny=v[o+4],nz=v[o+5];
+  const nu=nx*ca+nz*sa,nw=-nx*sa+nz*ca;
+  const nu2=nu*cb+ny*sb,ny2=ny*cb-nu*sb;
+  v[o+3]=nu2*ca-nw*sa;v[o+4]=ny2;v[o+5]=nu2*sa+nw*ca;
+}
+// 頂点（位置・法線）に、首折れと傾き・へたりを当てる
+function formBend(v,o,fm,theta,warp){
+  const a=fm.dir+theta,y=v[o+1];
+  if(fm.brkA){const t=clamp((y-fm.brkY+4)/8,0,1);if(t>0)formRot(v,o,a,fm.brkA*warp*t,fm.brkY);}
+  const al=fm.A*warp*Math.pow(clamp(y/Math.max(1,fm.H),0,1.3),2);
+  formRot(v,o,a,al,0);
+}
 function createRenderer(canvas,preserve){
   let gl=null;
   const attrs={antialias:true,alpha:true,premultipliedAlpha:false,preserveDrawingBuffer:!!preserve};
@@ -529,6 +591,7 @@ function createRenderer(canvas,preserve){
     for(let i=np-1,n=0;i>=0&&n<4;i--,n++){if(P[i][3])pool[i]=Math.max(pool[i],0.8-n*0.15);}
     const po=new Float32Array(np);   // 3点平均でならす
     for(let i=0;i<np;i++)po[i]=(pool[Math.max(0,i-1)]+pool[i]*2+pool[Math.min(np-1,i+1)])/4;
+    const fm=lob>0?vesselForm(st):null,H=st.lh*N;
     let o=0;
     for(let i=0;i<np;i++){
       const p=P[i],pp=P[Math.max(0,i-1)],pn=P[Math.min(np-1,i+1)];
@@ -543,13 +606,33 @@ function createRenderer(canvas,preserve){
           const w=1+am*(0.65*Math.cos(2*m+c2)+0.35*Math.cos(3*m+c3));
           rr=p[0]*w;tq=-am*(1.3*Math.sin(2*m+c2)+1.05*Math.sin(3*m+c3))/w;   // (dr/dφ)/r
         }
-        vbuf[o++]=ox+rr*COS[j];vbuf[o++]=p[1];vbuf[o++]=oz+rr*SIN[j];
+        let yy=p[1];
+        if(fm){
+          const top=k/(N-1),wr=lob*clamp((top-0.72)/0.28,0,1);
+          if(fm.att==='katakuchi'){         // 片口：縁の一か所をつまみ出す
+            let dm=Math.atan2(Math.sin(m),Math.cos(m));const g=Math.exp(-dm*dm/0.12)*wr;
+            rr*=1+0.25*g;yy+=4*g;
+          }else if(fm.att==='rinka'){       // 輪花：縁を五弁に波打たせる
+            rr*=1+0.05*wr*Math.cos(5*m);yy-=Math.min(4,H*0.06)*wr*(1-Math.cos(5*m))/2;
+          }
+          if(fm.col==='tear'){              // 遠心力で飛散：縁が裂けて外へ開く
+            const wt=lob*clamp((top-0.6)/0.4,0,1);
+            const g=Math.pow(Math.abs(Math.sin(2.5*m+st.ph[N-1])),3)*0.7+0.3*Math.abs(Math.sin(7*m+1.3));
+            yy-=H*0.22*wt*g;rr*=1+0.3*wt;
+          }else if(fm.col==='fold'){        // 高さの限界：蛇腹に潰れる
+            rr*=1+0.16*lob*Math.max(0,Math.sin(top*Math.PI*10));
+          }
+        }
+        const q=o;
+        vbuf[o++]=ox+rr*COS[j];vbuf[o++]=yy;vbuf[o++]=oz+rr*SIN[j];
         // 法線：回転体の法線を、周方向の傾き分だけ倒す
         const nx=nr*(COS[j]+tq*SIN[j]),nz=nr*(SIN[j]-tq*COS[j]),nl=Math.hypot(nx,ny,nz)||1;
         vbuf[o++]=nx/nl;vbuf[o++]=ny/nl;vbuf[o++]=nz/nl;
         vbuf[o++]=j/SEG;vbuf[o++]=p[1];vbuf[o++]=p[3];vbuf[o++]=po[i];
+        if(fm)formBend(vbuf,q,fm,theta,lob);
       }
     }
+    uploadParts(st,theta,lob,fm,amp.length?amp:null);
     gl.bindBuffer(gl.ARRAY_BUFFER,cVB);
     gl.bufferData(gl.ARRAY_BUFFER,vbuf.subarray(0,o),gl.DYNAMIC_DRAW);
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,cIB);
@@ -562,6 +645,74 @@ function createRenderer(canvas,preserve){
       gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,idx,gl.STATIC_DRAW);
       lastP=np;idxCount=idx.length;
     }
+  }
+  const pVB=gl.createBuffer(),pIB=gl.createBuffer();let pCount=0;
+  const pbuf=new Float32Array(4*40*13*10);
+  // 器の外側の半径（その高さ・その向き）。見た目の歪みも含める
+  function outerR(st,y,m,lob){
+    const k=clamp(Math.floor(y/st.lh),0,N-1),rel=st.off[k]/Math.max(4,st.r[k]);
+    const rf=clamp(Math.log(Math.max(st.rpmMax||RPM_MIN,RPM_MIN)/RPM_MIN)/Math.log(RPM_MAX/RPM_MIN),0,1);
+    const am=lob*Math.min(0.4,rel*0.55+rel*rel*0.3+rf*rf*0.06);
+    return st.r[k]*(1+am*(0.65*Math.cos(2*m+st.ph[k]*1.3)+0.35*Math.cos(3*m-st.ph[k]*2.1+1.7)));
+  }
+  function uploadParts(st,theta,lob,fm){
+    pCount=0;
+    if(!fm||!fm.att||fm.att==='katakuchi'||fm.att==='rinka')return;
+    const H=fm.H,tubes=[];
+    // 経路は器の材料座標（角度 mA の鉛直面内の 半径方向距離 ρ と高さ y）で与える
+    const tube=(mA,pts,rad)=>tubes.push({mA,pts,rad});
+    if(fm.att==='mimi'){
+      let ks=Math.floor(N*0.55),best=0;
+      for(let k=Math.floor(N*0.5);k<Math.floor(N*0.9);k++)if(st.r[k]>best){best=st.r[k];ks=k;}
+      const ys=(ks+0.5)*st.lh,e=clamp(H*0.07,5,16);
+      for(const mA of [0,Math.PI]){
+        const pts=[];
+        for(let i=0;i<=12;i++){const b=-Math.PI/2+Math.PI*i/12,y=ys+e*Math.sin(b);pts.push([outerR(st,y,mA,lob)-1.5+e*0.9*Math.cos(b),y]);}
+        tube(mA,pts,()=>e*0.3);
+      }
+    }
+    if(fm.att==='tede'||fm.att==='suichu'){
+      const y1=H*0.8,y2=H*0.36,d=clamp(H*0.25,16,55),pts=[];
+      for(let i=0;i<=16;i++){const t=i/16,y=y1+(y2-y1)*t+d*0.25*Math.sin(Math.PI*t);pts.push([outerR(st,y,Math.PI,lob)-2.5+d*Math.sin(Math.PI*t)*(1-0.15*t),y]);}
+      const rad=clamp(H*0.035,3,8);
+      tube(Math.PI,pts,()=>rad);
+    }
+    if(fm.att==='suichu'){
+      const y0=H*0.42,L=clamp(H*0.5,25,85),R0=outerR(st,y0,0,lob),pts=[];
+      for(let i=0;i<=12;i++){const t=i/12;pts.push([R0-5+L*0.8*t,y0+L*(0.25*t+0.75*t*t)]);}
+      const rs=clamp(H*0.06,5,12);
+      tube(0,pts,t=>rs*(1-0.45*t));
+    }
+    let o=0;const idx=[];const RS=12;
+    for(const tb of tubes){
+      const n=tb.pts.length,base=o/10;
+      for(let i=0;i<n;i++){
+        const pa=tb.pts[Math.max(0,i-1)],pb=tb.pts[Math.min(n-1,i+1)],pc=tb.pts[i];
+        let tr=pb[0]-pa[0],ty=pb[1]-pa[1];const tl=Math.hypot(tr,ty)||1;tr/=tl;ty/=tl;
+        const qr=-ty,qy=tr;          // 経路の面内で接線に直交
+        const ph=tb.mA+theta,cp=Math.cos(ph),sp=Math.sin(ph);
+        const k=clamp(Math.floor(pc[1]/st.lh),0,N-1),pv=st.ph[k]+theta,ox=st.off[k]*Math.cos(pv),oz=st.off[k]*Math.sin(pv);
+        const rad=tb.rad(i/(n-1))*Math.min(1,lob*1.5);
+        for(let j=0;j<=RS;j++){
+          const a=j/RS*Math.PI*2,ca=Math.cos(a),sa=Math.sin(a);
+          // 断面の法線＝ (経路面内の直交方向)·cos + (周方向)·sin
+          const nr=qr*ca,ny=qy*ca,nt=sa;
+          const nx=nr*cp-nt*sp,nz=nr*sp+nt*cp;
+          const rho=pc[0]+rad*nr,y=pc[1]+rad*ny;
+          const q=o;
+          pbuf[o++]=ox+rho*cp-rad*nt*sp;pbuf[o++]=y;pbuf[o++]=oz+rho*sp+rad*nt*cp;
+          pbuf[o++]=nx;pbuf[o++]=ny;pbuf[o++]=nz;
+          pbuf[o++]=tb.mA/(Math.PI*2)+i*0.01;pbuf[o++]=y;pbuf[o++]=0;pbuf[o++]=0;
+          formBend(pbuf,q,fm,theta,lob);
+        }
+      }
+      for(let i=0;i<n-1;i++)for(let j=0;j<RS;j++){
+        const a=base+i*(RS+1)+j,b=a+RS+1;idx.push(a,b,a+1,a+1,b,b+1);
+      }
+    }
+    gl.bindBuffer(gl.ARRAY_BUFFER,pVB);gl.bufferData(gl.ARRAY_BUFFER,pbuf.subarray(0,o),gl.DYNAMIC_DRAW);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,pIB);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint16Array(idx),gl.DYNAMIC_DRAW);
+    pCount=idx.length;
   }
   function draw(o){
     gl.viewport(0,0,o.w,o.h);
@@ -586,8 +737,13 @@ function createRenderer(canvas,preserve){
     }
     gl.uniform1f(U.uKind,0);
     uploadClay(o.st,o.theta,o.warp);
+    gl.bindBuffer(gl.ARRAY_BUFFER,cVB);gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,cIB);
     bindAttribs();
     gl.drawElements(gl.TRIANGLES,idxCount,gl.UNSIGNED_SHORT,0);
+    if(pCount){
+      gl.bindBuffer(gl.ARRAY_BUFFER,pVB);gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,pIB);bindAttribs();
+      gl.drawElements(gl.TRIANGLES,pCount,gl.UNSIGNED_SHORT,0);
+    }
   }
   return {gl,draw};
 }
@@ -1518,7 +1674,9 @@ function appraise(f,m){
     '民芸品':'日常の用に供して差し支えない。',
     '等外':'美術品としての評価は見送る。'
   };
-  const kind=KIND[t3[0].k];
+  const att=f.collapsed&&!f.singular?'':formAttach(m,sh);
+  const kind=att==='suichu'?'水注':KIND[t3[0].k];
+  const ATT_W={katakuchi:'片口',rinka:'輪花',mimi:'耳付',tede:'手付',suichu:''};
   let name,rank,comment,sub='（税込・桐箱付）',disposal='';
   if(f.singular){
     name='前例なきため未定';
@@ -1542,7 +1700,7 @@ function appraise(f,m){
       name=pick(['信楽','備前','伊賀'],'b')+'素焼'+(hollow?'湯呑':'置物');
       comment=COMMENT[rank];
     }else{
-      name=GLAZE_N[glaze]+MID[t3[1].k]+kind;
+      name=GLAZE_N[glaze]+MID[t3[1].k]+(ATT_W[att]||'')+kind;
       comment=SHAPE_COMMENT[t3[0].k]+COMMENT[rank];
     }
     if(f.price<1e4)sub='（材料費相当）';
@@ -1599,6 +1757,7 @@ function drawVessel3D(g,f,cx,baseY,maxW,maxH,glaze,seed){
   const c=makeCam();
   const Ht=f.lh*N;let ext=0;
   for(let k=0;k<N;k++)ext=Math.max(ext,f.r[k]+f.off[k]);
+  {const fm=vesselForm(f);ext=Math.max(ext,fm.maxR+fm.reach);}
   c.aspect=w/h;c.el=0.32;c.fovy=0.45;c.shift=0;
   const tanY=Math.tan(c.fovy/2);
   c.ty=Ht*0.5;
@@ -2265,7 +2424,10 @@ const DBG_ACTIONS={
   dish:()=>dbgSetShape(u=>40+100*Math.pow(u,0.6),()=>0.3,60),
   jar:()=>dbgSetShape(u=>u<0.85?40+50*Math.sin(Math.PI*u/0.85):28,()=>0.3,200),
   bowl:()=>dbgSetShape(u=>38+44*Math.pow(u,0.7),()=>2.5,85),
-  collapse:()=>{if(S.phase==='play'&&!S.collapsed)collapse('デバッグ');},
+  cNeck:()=>{if(S.phase==='play'&&!S.collapsed)collapse('首折れ');},
+  cTear:()=>{if(S.phase==='play'&&!S.collapsed)collapse('遠心力で飛散');},
+  cFold:()=>{if(S.phase==='play'&&!S.collapsed)collapse('高さの限界');},
+  cLean:()=>{if(S.phase==='play'&&!S.collapsed)collapse('軸ブレ崩壊');},
   last:()=>{if(S.phase==='play'){if(!S.started)startTimer();S.elapsed=PLAY_TIME-1.2;}},
   fire:()=>fire(),
   retry:()=>{tasStop();doRetry();},
@@ -2354,7 +2516,7 @@ function dbgBuild(){
   el.id='dbg-panel';
   el.style.cssText='position:fixed;right:6px;top:70px;z-index:60;width:212px;max-height:calc(100vh - 80px);overflow-y:auto;background:rgba(20,18,16,.88);color:#e8e2d6;font:11px/1.45 ui-monospace,Consolas,monospace;padding:8px;touch-action:manipulation;user-select:none';
   const btns=[['freeze','時間停止'],['noCollapse','崩壊無効'],['ignoreTime','特異点の時間条件無視'],['rpm','回転固定'],
-    ['vase','形:花瓶'],['dish','形:大皿'],['jar','形:壺'],['bowl','形:茶碗'],['collapse','崩壊させる'],['last','残り1秒へ'],['fire','即焼成'],['retry','リセット'],['ogp','OGP画像(1200×630)保存']];
+    ['vase','形:花瓶'],['dish','形:大皿'],['jar','形:壺'],['bowl','形:茶碗'],['cNeck','崩壊:首折れ'],['cTear','崩壊:飛散'],['cFold','崩壊:高さ'],['cLean','崩壊:軸ブレ'],['last','残り1秒へ'],['fire','即焼成'],['retry','リセット'],['ogp','OGP画像(1200×630)保存']];
   el.innerHTML='<div style="font-weight:700;margin-bottom:4px">DEBUG <span style="opacity:.6">( ` で閉じる)</span></div>'+
     // TAS：系統ごとに直接選ぶ
     '<div style="font-weight:700;margin:2px 0 3px">TAS <span style="opacity:.6">（押すとその動きで最初から）</span></div>'+
