@@ -45,8 +45,7 @@ body.sing{--shippo:none;--paper:#121110;--ink:#f1ece4;--sub:#a49b8f;--line:rgba(
 #price.hot{color:var(--shu)}
 #price.dead{color:#8b8780}
 #price.dead::after{content:'';position:absolute;left:-2%;right:-2%;top:55%;height:.06em;background:var(--shu);transform:rotate(-3deg)}
-.r3{display:flex;justify-content:space-between;align-items:center;margin-top:2px;min-height:44px}
-.r3m{flex:1;min-width:0;display:flex;justify-content:center;align-items:center;gap:10px}
+.r3{display:flex;justify-content:center;align-items:center;gap:10px;margin-top:4px;min-height:24px}
 .r4{display:flex;justify-content:center;height:44px;margin-top:2px}
 #rank{font-family:var(--mincho);font-weight:800;font-size:15px;letter-spacing:.14em;white-space:nowrap}
 #rank.hot{color:var(--shu)}
@@ -109,9 +108,11 @@ body.sing{--shippo:none;--paper:#121110;--ink:#f1ece4;--sub:#a49b8f;--line:rgba(
 #howto p{margin:0;font-family:var(--mincho);font-size:16px;font-weight:800;letter-spacing:.06em;line-height:1.5}
 #howto p small{display:block;font-size:12px;font-weight:600;color:#6e6458;letter-spacing:.04em}
 #howto .hgo{font-size:12px;color:#6e6458;letter-spacing:.2em;margin-top:6px}
-#rsbtn,#sbtn{flex:none;position:relative;width:48px;height:44px;border:0;background:transparent;color:var(--ink);padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer;touch-action:manipulation;pointer-events:auto}
-#rsbtn{visibility:hidden}
-#rsbtn svg,#sbtn svg{width:26px;height:26px;display:block}
+/* 音・やり直し：図鑑や番付と同じ見た目（アイコン＋文字、下線） */
+#rsbtn,#sbtn{position:relative;height:44px;border:0;background:transparent;color:var(--ink);padding:0 10px;display:flex;align-items:center;gap:6px;cursor:pointer;touch-action:manipulation;pointer-events:auto;font-family:var(--mincho);font-size:14px;font-weight:700;letter-spacing:.08em}
+#rsbtn{display:none}
+#rsbtn svg,#sbtn svg{width:20px;height:20px;display:block}
+#rsbtn::after,#sbtn::after{content:'';position:absolute;left:8px;right:8px;bottom:6px;height:1px;background:var(--line)}
 #rsbtn:active,#sbtn:active{color:var(--shu)}
 #sbtn .w{display:block}#sbtn .x{display:none}
 #sbtn.off{color:var(--sub)}#sbtn.off .w{display:none}#sbtn.off .x{display:block}
@@ -181,16 +182,14 @@ body.sing{--shippo:none;--paper:#121110;--ink:#f1ece4;--sub:#a49b8f;--line:rgba(
   <div id="hud">
     <div class="r1"><span>推定時価総額</span><span id="ttxt">残り 10.00</span></div>
     <div id="price"><span class="yen">¥</span><span id="pnum">560</span></div>
-    <!-- 肩書きの行：左に音、右にやり直し（器を伸ばす指が通る中央は空ける） -->
-    <div class="r3">
-      <button id="sbtn" aria-label="音を切る"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path class="w" d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/><path class="x" d="M16 9.5l5 5M21 9.5l-5 5"/></svg></button>
-      <div class="r3m"><span id="rank">泥塊</span><span id="status"></span></div>
-      <button id="rsbtn" aria-label="やり直す"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg></button>
-    </div>
+    <div class="r3"><span id="rank">泥塊</span><span id="status"></span></div>
+    <!-- 肩書きの下の行。開始前は ？・図鑑・番付・音、プレイ中は 音・やり直す -->
     <div class="r4">
       <button id="hbtn" aria-label="遊び方">？</button>
       <button id="zbtn" aria-label="図鑑"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 4.5h6.5a2 2 0 0 1 2 2V20a1.6 1.6 0 0 0-1.6-1.6H4z"/><path d="M20 4.5h-6.5a2 2 0 0 0-2 2V20a1.6 1.6 0 0 1 1.6-1.6H20z"/></svg>図鑑<em id="zbn"></em><i></i></button>
       <button id="bbtn" aria-label="番付">番付</button>
+      <button id="sbtn" aria-label="音を切る"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path class="w" d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/><path class="x" d="M16 9.5l5 5M21 9.5l-5 5"/></svg>音</button>
+      <button id="rsbtn" aria-label="やり直す"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg>やり直す</button>
     </div>
   </div>
   <div id="hint"><b>粘土をなぞって成形開始</b></div>
@@ -273,6 +272,7 @@ const ttxtEl=$('ttxt'),tlineEl=$('tline'),hintEl=$('hint');
 const ctrlEl=$('ctrl'),trackEl=$('track'),rpmvEl=$('rpmv'),multvEl=$('multv');
 const flashEl=$('flash'),resultEl=$('result'),cardCv=$('card'),cctx=cardCv.getContext('2d');
 const xBtn=$('xbtn'),saveBtn=$('save'),retryBtn=$('retry'),toastEl=$('toast');
+const r4El=document.querySelector('.r4');
 
 /* =========================================================
    行列ユーティリティ
@@ -1500,7 +1500,7 @@ function startTimer(){
   s.started=true;s.elapsed=0;
   hintEl.style.display='none';
   $('zbtn').style.display='none';$('hbtn').style.display='none';$('bbtn').style.display='none';
-  $('rsbtn').style.visibility='visible';
+  $('rsbtn').style.display='flex';
   sfx.click();
 }
 function fire(){
@@ -1519,7 +1519,7 @@ function fire(){
   s.shake=20;
   pointers.clear();
   ctrlEl.style.visibility='hidden';
-  $('rsbtn').style.visibility='hidden';
+  $('rsbtn').style.display='none';
   hintEl.style.display='none';
   const c=project(0,s.lh*N*0.5,0);
   for(let i=0;i<70;i++){
@@ -2514,7 +2514,7 @@ function retry(){
   ctrlEl.style.visibility='visible';
   hintEl.style.display='block';
   $('zbtn').style.display='flex';$('hbtn').style.display='flex';$('bbtn').style.display='flex';
-  $('rsbtn').style.visibility='hidden';
+  $('rsbtn').style.display='none';
   zClose();
   flashEl.style.opacity='0';
   document.body.className='';
@@ -2888,8 +2888,11 @@ function update(dt){
   updateParticles(dt);
   const amp=s.shake+(s.phase==='play'?((s.logD>=7?1+(s.logD-7)*1.8:0)+s.rpmF*s.rpmF*2):0);
   s.shake*=Math.exp(-dt*5);
-  if(amp>0.3)stageEl.style.transform='translate('+((Math.random()-0.5)*amp*2).toFixed(1)+'px,'+((Math.random()-0.5)*amp*2).toFixed(1)+'px)';
-  else if(stageEl.style.transform)stageEl.style.transform='';
+  // 画面の揺れ。ボタンの行（音・やり直す など）だけは逆に動かして、押す場所が揺れないようにする
+  if(amp>0.3){
+    const dx=((Math.random()-0.5)*amp*2).toFixed(1),dy=((Math.random()-0.5)*amp*2).toFixed(1);
+    stageEl.style.transform='translate('+dx+'px,'+dy+'px)';r4El.style.transform='translate('+(-dx)+'px,'+(-dy)+'px)';
+  }else if(stageEl.style.transform){stageEl.style.transform='';r4El.style.transform='';}
   audioMotor(s.rpmF,s.phase==='play',Math.min(1,s.wob*3));
   if(s.phase!=='play')audioClay(0,0,0);
 }
