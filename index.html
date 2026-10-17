@@ -919,7 +919,10 @@ function makeIR(c,sec,decay){
 function audioInit(){
   if(AU.ctx){if(AU.ctx.state==='suspended')AU.ctx.resume();return;}
   const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
-  const c=new AC();AU.ctx=c;
+  // Android の Chrome は標準で遅れ最小の設定になり、少し重いだけで音が途切れて「パリパリ」鳴る。
+  // 遅れを 0.06秒ほど許して途切れにくくする（指と音のずれは感じない範囲）
+  let c;try{c=new AC({latencyHint:0.06});}catch(e){c=new AC();}
+  AU.ctx=c;
   const comp=c.createDynamicsCompressor();
   comp.threshold.value=-16;comp.knee.value=12;comp.ratio.value=4;comp.attack.value=0.005;comp.release.value=0.25;
   // 最後段のリミッター：重なっても波形の上限を超えない
@@ -931,8 +934,8 @@ function audioInit(){
   const master=c.createGain();master.gain.value=0.9;master.connect(comp);
   const warm=c.createBiquadFilter();warm.type='lowshelf';warm.frequency.value=140;warm.gain.value=4;warm.connect(master);
   AU.dry=warm;
-  // ホール残響
-  const conv=c.createConvolver();conv.buffer=makeIR(c,2.8,2.6);
+  // ホール残響（長いほど計算が重いので 1.8秒に抑える）
+  const conv=c.createConvolver();conv.buffer=makeIR(c,1.8,2.4);
   const rg=c.createGain();rg.gain.value=0.5;conv.connect(rg);rg.connect(master);
   const shp=c.createBiquadFilter();shp.type='highpass';shp.frequency.value=180;shp.connect(conv);
   AU.send=shp;
@@ -1066,8 +1069,19 @@ const sfx={
     const scale=[0,2,5,7,9];
     const idx=Math.max(0,Math.floor(lv*2.2));
     const n=scale[idx%5]+12*Math.floor(idx/5);
-    const f=Math.min(2400,262*Math.pow(2,n/12));
-    [[1,1,1],[2.756,0.45,0.6],[5.404,0.22,0.35],[8.933,0.1,0.2]].forEach(p=>this.tone(f*p[0],1.1*p[2],0.095*p[1],'sine',0,0,0.55,0.003));
+    const f=Math.min(2400,262*Math.pow(2,n/12)),t=c.currentTime;
+    // 1枚分の倍音を1つの束にまとめ、残響へ送る口も1つにする（部品の数を減らして軽くする）
+    const bus=c.createGain();this.out(bus,0.55);
+    const os=[[1,1,1],[2.756,0.45,0.6],[5.404,0.22,0.35],[8.933,0.1,0.2]].map(p=>{
+      const o=c.createOscillator();o.frequency.value=f*p[0];
+      const g=c.createGain();this.env(g,t,0.003,0.095*p[1],1.1*p[2]);
+      o.connect(g);g.connect(bus);o.start(t);o.stop(t+1.1*p[2]+0.05);return o;
+    });
+    // 同時に鳴る硬貨は4枚まで。超えたら一番古い1枚（もう十分小さい）を素早く消す
+    const V=AU.coinV||(AU.coinV=[]);
+    while(V.length&&V[0].end<=t)V.shift();
+    V.push({bus,os,end:t+1.15});
+    if(V.length>4){const o=V.shift();o.bus.gain.setTargetAtTime(0,t,0.006);o.os.forEach(x=>{try{x.stop(t+0.05);}catch(e){}});}
   },
   crash(){
     this.tone(110,0.9,0.9,'sine',0,30,0.35,0.003);
