@@ -982,10 +982,19 @@ function setP(p,v,t,tc){
   p.__v=v;p.setTargetAtTime(v,t,tc);
 }
 // on：指が粘土に触れているか。触れている間は止めていても鳴り、離したら即座に切る
-function audioClay(act,rpmF,hFrac,on){
+// こする強さは毎コマ大きく揺れる（スマホは指の動きがコマごとに届いたり届かなかったりする）。
+// そのまま音量にすると 1秒に数十回の揺れが「バリバリ」と鳴るので、強さはならしてから使う
+// 粘土の縁をこすって触れる・離れるが細かく入れ替わるときも、切るのは 50ms 離れ続けてから（指を上げたときは up で即座に切る）
+function audioClay(act,rpmF,hFrac,on,now){
   if(!AU.ctx||!AU.m)return;
-  const t=AU.ctx.currentTime,m=AU.m,a=clamp(act,0,1);
-  setP(m.clayGain.gain,on?0.1+a*0.4:0,t,0.008);
+  const t=AU.ctx.currentTime,m=AU.m,dt=clamp(t-(AU.clayLT||t),0,0.1);AU.clayLT=t;
+  const x=clamp(act,0,1),A=AU.clayA||0;
+  AU.clayA=A+(x-A)*(1-Math.exp(-dt/(x>A?0.06:0.18)));
+  if(on)AU.clayOnT=t;
+  const live=on||(!now&&t-(AU.clayOnT||-1)<0.05);
+  setP(m.clayGain.gain,live?0.1+AU.clayA*0.4:0,t,live&&m.clayGain.gain.__v>0?0.03:0.008);
+  if(!live)AU.clayA=0;
+  const a=AU.clayA;
   // 音色の揺れは毎秒20回まで
   if(t-(AU.clayT||0)<0.05)return;AU.clayT=t;
   const f=350+1050*clamp(0.45*hFrac+0.4*rpmF+0.25*a,0,1)*(0.9+Math.random()*0.2);
@@ -2540,7 +2549,7 @@ fxCv.addEventListener('pointermove',e=>{
   const p=pointers.get(e.pointerId);
   if(p){p.x=e.clientX;p.y=e.clientY;}
 });
-const pUp=e=>{pointers.delete(e.pointerId);if(!pointers.size)audioClay(0,0,0,false);};
+const pUp=e=>{pointers.delete(e.pointerId);if(!pointers.size)audioClay(0,0,0,false,true);};
 fxCv.addEventListener('pointerup',pUp);
 fxCv.addEventListener('pointercancel',pUp);
 fxCv.addEventListener('lostpointercapture',pUp);
@@ -2896,7 +2905,7 @@ function update(dt){
     stageEl.style.transform='translate('+dx+'px,'+dy+'px)';r3El.style.transform='translate('+(-dx)+'px,'+(-dy)+'px)';
   }else if(stageEl.style.transform){stageEl.style.transform='';r3El.style.transform='';}
   audioMotor(s.rpmF,s.phase==='play',Math.min(1,s.wob*3));
-  if(s.phase!=='play')audioClay(0,0,0);
+  if(s.phase!=='play')audioClay(0,0,0,false,true);
 }
 let last=performance.now();
 function loop(now){
