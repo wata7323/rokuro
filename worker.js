@@ -3,7 +3,8 @@
 //   POST /api/rank {n,p,r,k,u} → 中身を検証し、総合か器種別の上位に入れば保存して {pos,kpos,kind,id,list,kinds,total}（u はなまえ：ひらがな6文字まで）
 //                               器種は銘の末尾（茶碗・大鉢…）から決める。素焼と古い特異点の銘は総合だけ
 //                               逆番付（low：安い順の1本）にも入れてみる。崩壊（鑑定不能・産業廃棄物）は逆番付にだけ載る → {lpos,low}
-//   POST /api/play {f}        → プレイ回数を1つ数える（f=1 ならその端末の初回＝新しい人）
+//   POST /api/play {f,c,k}    → プレイ回数を1つ数える（f=1 ならその端末の初回＝新しい人、c=1 なら崩れずに完成した品として made も数える、
+//                               k は完成品の器種で made:<器種> も数える）。made と器種別（madeKinds）は番付の見出しに出す。集計のリセットでは消さない
 //   GET  /stats               → 合言葉の入力欄だけ
 //   POST /stats {k,a,id}      → 合言葉が合えば、集計（日本時間の日ごと）と番付の全件を見せる。a=reset で集計を0に、a=del で番付の1件を消す
 //                               合言葉は Cloudflare の Secret「STATS_KEY」に登録する（コードには書かない）
@@ -135,11 +136,34 @@ export class Board extends DurableObject{
     if(hit)await s.put(w);
     return hit>0;
   }
-  async play(first){
+  // これまでに完成した品数（崩れずに焼き上がった回。番付に載ったかは問わない）。数え始める前の分は、番付の登録数から始める
+  async made(){
+    const s=this.ctx.storage;let n=await s.get('made');
+    if(typeof n!=='number'){n=await this.total();await s.put('made',n);}
+    return n;
+  }
+  // 器種別の完成数 {tall:…,…}。数え始める前の分は、番付に残っているその器種の記録数から始める
+  async madeKinds(){
+    const s=this.ctx.storage,m=await s.get(KIND_PARTS.map(k=>'made:'+k)),o={};let ids=null;
+    for(const k of KIND_PARTS){
+      let n=m.get('made:'+k);
+      if(typeof n!=='number'){
+        if(!ids){ids=new Map();[await this.top(),...Object.values(await this.kinds())].forEach(l=>l.forEach(e=>ids.set(e.id,e.n)));}
+        n=[...ids.values()].filter(nm=>nameKind(nm)===k).length;await s.put('made:'+k,n);
+      }
+      o[k]=n;
+    }
+    return o;
+  }
+  async play(first,done,kind){
     const d=jstDay(Date.now()),s=this.ctx.storage;
     const k=['plays','plays:'+d].concat(first?['players','players:'+d]:[]);
     const cur=await s.get(k),o={};
     for(const x of k)o[x]=(cur.get(x)||0)+1;
+    if(done){
+      o.made=(await this.made())+1;
+      if(KIND_PARTS.includes(kind))o['made:'+kind]=(await this.madeKinds())[kind]+1;
+    }
     await s.put(o);
   }
   async stats(days){
@@ -172,7 +196,7 @@ async function rank(req,env){
     const b=board(env),o={list:await b.top()},err=[];
     try{o.kinds=await b.kinds();}catch(e){err.push('kinds: '+errText(e));}
     try{o.low=await b.low();}catch(e){err.push('low: '+errText(e));}
-    try{o.total=await b.total();}catch(e){err.push('total: '+errText(e));}
+    try{o.total=await b.total();o.made=await b.made();o.madeKinds=await b.madeKinds();}catch(e){err.push('total: '+errText(e));}
     if(err.length)o.err=err;
     return json(o);
   }
@@ -187,7 +211,7 @@ async function play(req,env){
   // 1回のプレイは10秒以上かかるので、それより短い間隔の連打は数えない
   if(await busy(req,'play',8))return json({ok:false},429);
   let b={};try{b=await req.json();}catch(e){}
-  await board(env).play(b&&b.f===1);
+  await board(env).play(b&&b.f===1,b&&b.c===1,b&&typeof b.k==='string'?b.k:'');
   return json({ok:true});
 }
 
@@ -210,7 +234,7 @@ form{display:flex;gap:8px;max-width:480px;margin:0}form.k{margin-top:8px}form in
 button{font:inherit;font-weight:700;padding:8px 14px;border:0;background:#1b1814;color:#f6f1e7;border-radius:0;cursor:pointer}td button{padding:4px 10px;font-size:13px;background:#a12b12}`;
 const page=(body)=>new Response(`<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>集計｜10秒暴走ろくろ</title><style>${CSS}</style></head><body>
 <h1>10秒暴走ろくろ 集計</h1>${body}</body></html>`,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-frame-options':'DENY','referrer-policy':'no-referrer'}});
-const MSG={ok:'集計を0に戻しました。',del:'番付から1件消しました。',gone:'その記録はもう番付にありません。',ng:'合言葉が違います。',busy:'少し待ってからもう一度入れてください。',nokey:'合言葉（STATS_KEY）が Cloudflare に登録されていません。'};
+const MSG={ok:'集計を0に戻しました。',del:'番付から1件消しました。',gone:'その記録はもう番付にありません。',ng:'合言葉が違います。',busy:'少し待ってからもう一度入れてください。',switch:'更新の切り替え中です。1〜2分たってから、もう一度開いてください。',nokey:'合言葉（STATS_KEY）が Cloudflare に登録されていません。'};
 const msgHtml=r=>MSG[r]?`<p class="m${['ok','del'].includes(r)?'':' ng'}">${MSG[r]}</p>`:'';
 const loginPage=r=>page(`${msgHtml(r)}<form method="post" action="/stats"><input type="password" name="k" placeholder="合言葉" autocomplete="current-password" required autofocus><input type="hidden" name="a" value="view"><button>開く</button></form>`);
 
@@ -223,10 +247,14 @@ async function stats(req,env){
   // 合言葉の総当たりを防ぐ：間違えたら、同じ端末からは5秒待たないと次を試せない（合っている人の操作は止めない）
   if(await rateHas(req,'statsng'))return loginPage('busy');
   if(!(await keyOk(k,env))){await rateMark(req,'statsng',5);return loginPage('ng');}
+  // 公開し直した直後の数分は、保存先（Durable Object）だけ古い版のまま動くことがある。そのときは止まらずに知らせる
+  try{return await statsBody(env,k,a,id);}catch(e){return loginPage('switch');}
+}
+async function statsBody(env,k,a,id){
   const b=board(env);let r='';
   if(a==='reset'){await b.resetStats();r='ok';}
   else if(a==='del'&&/^[0-9a-f]{8}$/.test(id))r=(await b.remove(id))?'del':'gone';
-  const st=await b.stats(30),top=await b.top(),low=await b.low(),kinds=await b.kinds(),total=await b.total();
+  const st=await b.stats(30),top=await b.top(),low=await b.low(),kinds=await b.kinds(),total=await b.total(),made=await b.made(),mk=await b.madeKinds();
   // 番付は総合・器種別・逆番付をまとめて1件ずつ並べ、どこに載っているかを添える
   const seen=new Map();
   const put=(l,tag)=>l.forEach(e=>{const x=seen.get(e.id)||{e,tags:[]};x.tags.push(tag);seen.set(e.id,x);});
@@ -237,7 +265,8 @@ async function stats(req,env){
   const rk=rows.map(({e,tags})=>{const d=new Date(e.t+9*3600e3);return `<tr><td class="l">${esc(e.u||'名無し')}<small>「${esc(e.n)}」${esc(e.r)}　${d.getUTCMonth()+1}/${d.getUTCDate()}　${esc(tags.join('・'))}</small></td><td>${yen(e.p)}</td>
 <td><form method="post" action="/stats" onsubmit="return confirm('この記録を番付から消します。よろしいですか？')">${hk}<input type="hidden" name="a" value="del"><input type="hidden" name="id" value="${esc(e.id)}"><button>消す</button></form></td></tr>`;}).join('');
   return page(`${msgHtml(r)}
-<div class="t"><div>プレイ回数<b>${st.plays.toLocaleString()}</b></div><div>プレイした人<b>${st.players.toLocaleString()}</b></div><div>番付の登録<b>${total.toLocaleString()}</b></div></div>
+<div class="t"><div>プレイ回数<b>${st.plays.toLocaleString()}</b></div><div>プレイした人<b>${st.players.toLocaleString()}</b></div><div>完成した品<b>${made.toLocaleString()}</b></div><div>番付の登録<b>${total.toLocaleString()}</b></div></div>
+<p><small>器種別の完成：${KIND_PARTS.map(kk=>KIND_WORD[kk]+' '+mk[kk].toLocaleString()).join('　')}</small></p>
 <table><tr><th>日付（日本時間）</th><th>回数</th><th>新しい人</th></tr>${tr}</table>
 <p><small>人数は「その端末で初めて遊んだ回」を数えたもの。ブラウザの記録を消すと、同じ人でも新しい人として数え直されます。</small></p>
 <form class="k" method="post" action="/stats" onsubmit="return confirm('プレイ回数と人数を0に戻します（番付は消えません）。よろしいですか？')">${hk}<input type="hidden" name="a" value="reset"><button>集計をリセット</button></form>
