@@ -1351,7 +1351,9 @@ function physics(dt,touched){
     const hF=0.5+k/N;
     const g=s.collapsed?0.25:1;
     const free=1-0.96*Math.max(s.sup[k],touched&&!s.collapsed?0.3:0);
-    const dr=s.r[k]*F*0.3*thinF*hF*dt*g*free;
+    // 飛び散る寸前（半径130〜170）の段は、触れている間の抑えが強まる。終盤に押さえて耐えやすくする（それより内側の広がり方は変えない）
+    const freeR=1-0.96*Math.max(s.sup[k],touched&&!s.collapsed?0.3+0.6*clamp((s.r[k]-130)/40,0,1):0);
+    const dr=s.r[k]*F*0.3*thinF*hF*dt*g*freeR;
     s.r[k]+=dr;
     if(solid)s.t[k]=s.r[k];else s.t[k]=Math.max(TMIN,s.t[k]-dr*0.2);
     s.off[k]+=F*dt*(s.off[k]*0.5*thinF*hF+Math.random()*2*hF)*free;
