@@ -150,7 +150,7 @@ body.sing{--shippo:none;--paper:#121110;--ink:#f1ece4;--sub:#a49b8f;--line:rgba(
 .zh{display:flex;justify-content:center;align-items:baseline;gap:12px;flex:none}
 .zs{font-size:11px;color:#6e6458;letter-spacing:.06em;margin:2px 0 8px;flex:none}
 .zh b{font-family:var(--mincho);font-size:22px;font-weight:800;letter-spacing:.2em}
-#zcount{font-family:var(--mincho);font-size:15px;color:#6e6458}
+#zcount,#bcount{font-family:var(--mincho);font-size:15px;color:#6e6458}
 #zclose{flex:none;width:52px;height:52px;border:0;background:transparent;color:#1b1814;padding:12px;cursor:pointer;margin-top:4px}
 #zgrid{flex:1;min-height:0;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(4,minmax(0,1fr));gap:8px 10px;max-width:520px;width:100%}
 @media (min-aspect-ratio:1/1){#zgrid{grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(3,minmax(0,1fr));max-width:760px}}
@@ -241,7 +241,7 @@ body.sing{--shippo:none;--paper:#121110;--ink:#f1ece4;--sub:#a49b8f;--line:rgba(
   <div id="bkmsg"></div>
   <div class="bkb"><button type="button" id="bkno">載せない</button><button type="submit" id="bkyes">載せる</button></div>
 </form></div>
-<div id="banzuke"><div class="zh"><b>番付</b></div><div class="zs" id="bsub">これまでの鑑定額 上位10</div><div id="btabs"></div><form id="bname" autocomplete="off"><label for="bnin">なまえ</label><input id="bnin" maxlength="12" placeholder="ひらがな6文字まで" enterkeyhint="done"><button type="submit">決める</button></form><div id="bnmsg"></div><ol id="blist"></ol><button id="bclose" aria-label="閉じる"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+<div id="banzuke"><div class="zh"><b>番付</b><span id="bcount"></span></div><div class="zs" id="bsub">これまでの鑑定額 上位10</div><div id="btabs"></div><form id="bname" autocomplete="off"><label for="bnin">なまえ</label><input id="bnin" maxlength="12" placeholder="ひらがな6文字まで" enterkeyhint="done"><button type="submit">決める</button></form><div id="bnmsg"></div><ol id="blist"></ol><button id="bclose" aria-label="閉じる"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
 <div id="zukan"><div class="zh"><b>図鑑</b><span id="zcount"></span></div><div class="zs">形ごとに、整った器の最高額を残す</div><div id="zgrid"></div><button id="zclose" aria-label="閉じる"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
 <div id="howto">
   <div class="hw"><svg viewBox="0 0 120 84" fill="none" stroke-linecap="round"><path d="M42 78c0-14 8-20 8-30s-6-14-6-20M78 78c0-14-8-20-8-30s6-14 6-20" stroke="#1b1814" stroke-width="2"/><path d="M30 80h60" stroke="#1b1814" stroke-width="2"/><circle cx="96" cy="48" r="7" stroke="#c8371a" stroke-width="2"/><path d="M86 48h-8M82 44l-4 4 4 4" stroke="#c8371a" stroke-width="2"/></svg>
@@ -255,7 +255,7 @@ body.sing{--shippo:none;--paper:#121110;--ink:#f1ece4;--sub:#a49b8f;--line:rgba(
   <!-- 版（セマンティック バージョニング 主.副.修正）：変更するたびに上げる。
        修正・小さな調整 → 3つ目（1.0.0→1.0.1）／新しい機能 → 2つ目（1.0.1→1.1.0）／遊び方が大きく変わる → 1つ目（1.1.0→2.0.0）
        アップロード後、スマホに新しい版が届いたかをここで確かめる -->
-  <div id="hver">作者 わたわたするわた<i></i>ver. 1.1.0</div>
+  <div id="hver">作者 わたわたするわた<i></i>ver. 1.2.0</div>
 </div>
 <div id="toast"></div>
 <script>
@@ -2489,7 +2489,7 @@ function zClose(){$('zukan').style.display='none';}
 /* 番付（ランキング）：サーバーの /api/rank に、なまえ（ひらがな6文字まで）・銘・鑑定額・格付・プレビューの種類だけを送る
    総合・器種別（11種）・逆番付（安い順）の3つ。崩壊は逆番付にだけ載る。開発用の自動操作やデバッグを使った回は送らない */
 const RANK_API='/api/rank',RANK_SHOW=10;
-let rankList=null,rankKinds=null,rankLow=null,bView='';   // rankKinds：器種ごとの番付 {tall:[…],…}。rankLow：逆番付（安い順）。bView：''=総合、'low'=逆番付、それ以外は器種
+let rankList=null,rankKinds=null,rankLow=null,rankTotal=null,bView='';   // rankTotal：これまでに番付へ登録された品数   // rankKinds：器種ごとの番付 {tall:[…],…}。rankLow：逆番付（安い順）。bView：''=総合、'low'=逆番付、それ以外は器種
 // 銘の末尾の器種から、器種別の番付の部を決める（worker.js の nameKind と同じ）。素焼・古い特異点の銘は総合だけ
 const KIND_WORDS=Object.entries(ZKIND).concat([['bulge','水注']]).sort((a,b)=>b[1].length-a[1].length);
 function nameKind(n){if(/素焼/.test(n))return '';const w=KIND_WORDS.find(([,w])=>n.endsWith(w));return w?w[0]:'';}
@@ -2514,6 +2514,7 @@ function rankTake(j){
   if(Array.isArray(j.list))rankList=j.list;
   if(j.kinds&&typeof j.kinds==='object')rankKinds=j.kinds;
   if(Array.isArray(j.low))rankLow=j.low;
+  if(typeof j.total==='number')rankTotal=j.total;
 }
 // 番付に入る記録が出たら、載せる前に名前をたずねる（前回の名前を入れておく）
 let rankPending=null;
@@ -2572,6 +2573,7 @@ const btabs=$('btabs');
 function bRender(){
   const ol=$('blist');ol.innerHTML='';
   btabs.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.k===bView));
+  $('bcount').textContent=rankTotal!==null?'登録 '+rankTotal.toLocaleString('ja-JP')+'品':'';
   $('bsub').textContent=bView==='low'?'これまでの鑑定額 下位10':(bView?ZKIND[bView]+'の部 上位10':'これまでの鑑定額 上位10');
   const list=bView==='low'?rankLow:(bView?(rankKinds?(rankKinds[bView]||[]):null):rankList);
   if(!list){const li=document.createElement('li');li.className='bx';li.textContent=rankOn()?'番付を読み込めませんでした':'公開ページでのみ表示されます';ol.appendChild(li);return;}
