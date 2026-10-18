@@ -2291,26 +2291,12 @@ function changeStr(exp,act){
   if(a<0.05)return '±0%';
   return (d>0?'▲':'▼')+(a>=99.95?(Math.floor(a*100)/100).toFixed(2):a.toFixed(1))+'%';
 }
-// 一言：結果の種類と、予想からの変動で決める（同じ器なら同じ一言）
-function shareMood(f,i){
-  const r=f.price/Math.max(1,f.peakPrice||f.price),P=a=>a[i.seed%a.length];
-  if(f.collapsed&&!f.singular)return f.peakPrice>=1e6?P(['ほぼ理想形だったのに','最後の瞬間に運命が分かれた…']):P(['完全に暴走した','回転に呑まれた']);
-  if(f.singular)return r>=2?P(['まさかの大化け！','神の手か…']):'前例なき結果';
-  if(f.price>=1e8||i.glaze==='yohen')return '幻の器が生まれた';
-  if(i.score<0.2)return 'これはもう芸術だ';
-  if(r<=0.7)return P(['最後の瞬間に運命が分かれた…','ほぼ理想形だったのに']);
-  if(r>=1.3)return P(['まさかの大化け！','神の手か…']);
-  if(r<=0.9)return P(['あと一歩及ばず','最後に少し欲が出た']);
-  if(r>=1.1)return P(['焼きで化けた','窯が味方した']);
-  return P(['読みどおりの仕上がり','手応えどおりの一品']);
-}
 function shareText(){
   const f=S.final,i=cardInfo,exp=f.peakPrice||f.price,r=f.price/Math.max(1,exp);
   // 見出し：崩壊・暴落・特異点は見出しで先に伝える
   const head=f.singular?'【暴走結果・特異点】':(f.collapsed?'【暴走結果・崩壊】':(r<=0.5?'【暴走結果・暴落】':'【暴走結果】'));
   const L=[head,'「'+i.name+'」','予想鑑定額 ¥'+fmt(exp),'実際の鑑定額 ¥'+fmt(f.price)+'（'+changeStr(exp,f.price)+'）'];
   if(f.collapsed&&!f.singular&&i.disposal)L.push('処分：'+i.disposal);
-  L.push(shareMood(f,i));
   return L.join('\n')+'\n\n#10秒暴走ろくろ';
 }
 // 共有リンク：結果に合うプレビュー画像のページ（capture/ogp_k.js で作った k/<key>/。画像は og/<key>.jpg）。URL に入るのは決まった記号だけ
