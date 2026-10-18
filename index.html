@@ -4,21 +4,21 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#ebe5d9">
-<title>10秒暴走ろくろ：人間国宝か、時価4円の泥塊か</title>
-<meta name="description" content="指でなぞって10秒で器を挽く。回転は最大99,999rpm。焼き上がりの鑑定額は ¥9,999,999,999 か、¥4 の泥塊か。">
+<title>10秒暴走ろくろ：人間国宝か、産業廃棄物か</title>
+<meta name="description" content="指でなぞって10秒で器を挽く。回転は最大99,999rpm。焼き上がりは人間国宝か、産業廃棄物か。">
 <!-- OGP / Twitter Card：公開時は og:url と画像URLを https:// から始まる絶対URLに書き換える（Xは相対URLの画像を読まない） -->
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="10秒暴走ろくろ">
-<meta property="og:title" content="10秒暴走ろくろ：人間国宝か、時価4円の泥塊か">
-<meta property="og:description" content="指でなぞって10秒で器を挽く。回転は最大99,999rpm。焼き上がりの鑑定額は ¥9,999,999,999 か、¥4 の泥塊か。">
+<meta property="og:title" content="10秒暴走ろくろ：人間国宝か、産業廃棄物か">
+<meta property="og:description" content="指でなぞって10秒で器を挽く。回転は最大99,999rpm。焼き上がりは人間国宝か、産業廃棄物か。">
 <meta property="og:url" content="https://rokuro.watasuru.com/">
 <meta property="og:image" content="https://rokuro.watasuru.com/ogp.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:locale" content="ja_JP">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="10秒暴走ろくろ：人間国宝か、時価4円の泥塊か">
-<meta name="twitter:description" content="指でなぞって10秒で器を挽く。鑑定額は ¥9,999,999,999 か、¥4 か。">
+<meta name="twitter:title" content="10秒暴走ろくろ：人間国宝か、産業廃棄物か">
+<meta name="twitter:description" content="指でなぞって10秒で器を挽く。人間国宝か、産業廃棄物か。">
 <meta name="twitter:image" content="https://rokuro.watasuru.com/ogp.png">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23ebe5d9'/%3E%3Cellipse cx='32' cy='50' rx='17' ry='3.5' fill='%231b1814' opacity='.25'/%3E%3Cpath d='M9 22 Q10 47 26 49 L38 49 Q54 47 55 22 Z' fill='%232a1a12'/%3E%3Cpath d='M12 28 Q20 34 32 33 Q44 34 52 28' stroke='%23c8371a' stroke-width='2.4' fill='none'/%3E%3Cellipse cx='32' cy='22' rx='23' ry='5' fill='%233b2618'/%3E%3Cellipse cx='32' cy='22' rx='19.5' ry='3.6' fill='%230d0806'/%3E%3Crect x='24' y='49' width='16' height='5' fill='%232a1a12'/%3E%3Crect x='46' y='4' width='14' height='14' fill='%23c8371a'/%3E%3C/svg%3E">
 <style>
@@ -2851,12 +2851,9 @@ function dbgSaveOGP(){
   fitFont(g,'10秒暴走ろくろ',tw,104,'900',MINCHO);g.fillText('10秒暴走ろくろ',tx-4,230);
   g.fillStyle='#c8371a';g.fillRect(tx,256,tw,4);
   g.fillStyle='#2a160c';
-  fitFont(g,'人間国宝か、時価4円の泥塊か',tw,42,'800',MINCHO);g.fillText('人間国宝か、時価4円の泥塊か',tx,316);
-  // 価格の対比
+  fitFont(g,'人間国宝か、産業廃棄物か',tw,42,'800',MINCHO);g.fillText('人間国宝か、産業廃棄物か',tx,316);
   g.fillStyle='#c8371a';
-  const ps=fitFont(g,'¥9,999,999,999',tw,68,'900',MINCHO);g.fillText('¥9,999,999,999',tx,398);
-  g.fillStyle='#6e6458';g.font='700 '+Math.round(ps*0.6)+'px '+MINCHO;g.fillText('↔',tx+2,398+ps*1.05);
-  g.fillStyle='#1b1814';g.font='900 '+ps+'px '+MINCHO;g.fillText('¥4',tx+ps*0.85,398+ps*1.1);
+  fitFont(g,'¥9,999,999,999',tw,68,'900',MINCHO);g.fillText('¥9,999,999,999',tx,398);
   g.fillStyle='#6e6458';g.font='600 21px '+MINCHO;
   g.fillText('指でなぞって十秒。最高 99,999 rpm。',tx,OH-104);
   if(fired){g.fillStyle='#8a5a2a';g.font='700 18px '+MINCHO;fitFont(g,'出品作「'+cardInfo.name+'」',tw-130,18,'700',MINCHO);g.fillText('出品作「'+cardInfo.name+'」',tx,OH-74);}
