@@ -155,6 +155,16 @@ body.sing{--shippo:none;--paper:#121110;--ink:#f1ece4;--sub:#a49b8f;--line:rgba(
 .zc .zp.q{color:#8a7f72}
 .zc.off .zn{color:#8a7f72}
 .zc .zt{font-size:10px;color:#6e6458;letter-spacing:.06em;line-height:1.4}
+/* 全種そろったら空きの1マスに朱印。初めて開いたときだけ押す動き */
+.zc.zdone{justify-content:center;align-items:center}
+.zc.zdone img{flex:none;width:70%;height:auto;max-height:78%;transform:rotate(-5deg)}
+.zc.zdone .zn{color:#c8371a}
+.zc.zdone.drop img{animation:zstamp .3s cubic-bezier(.3,.6,.3,1) .35s both}
+.zc.zdone.drop .zn{animation:zfade .4s ease-out .7s both}
+@keyframes zstamp{0%{transform:scale(2.6) rotate(-14deg);opacity:0}70%{opacity:1}100%{transform:rotate(-5deg)}}
+@keyframes zfade{0%{opacity:0}100%{opacity:1}}
+#zgrid.slam{animation:slam .35s ease-out}
+#zcount.done{color:#c8371a}
 #shoji{position:fixed;inset:0;z-index:42;pointer-events:none;overflow:hidden}
 #shoji.closed{pointer-events:auto}
 .sp{position:absolute;top:0;bottom:0;width:50.5%;background-color:#f3eee2;
@@ -2167,7 +2177,8 @@ function showResult(){
   audioDuck(true);
   buildCard(s.final);
   tasResult(s.final,cardInfo);
-  if(zRecord(s.final,cardInfo)){$('zbtn').classList.add('new');$('zbtn2').classList.add('new');}
+  s.zDone=false;
+  if(zRecord(s.final,cardInfo)){$('zbtn').classList.add('new');$('zbtn2').classList.add('new');const d=zLoad();s.zDone=IDX.every(ix=>d[ix.k]);}
   zBadge();
   renderCard(0,false,0);
   resultEl.style.display='flex';resultEl.scrollTop=0;
@@ -2187,6 +2198,7 @@ function updateResult(dt){
       s.landed=true;s.stampStart=s.revealT;
       xBtn.disabled=false;
       rankSubmit(f,cardInfo);
+      if(s.zDone)toast('図鑑が揃いました');
       audioDuck(false);
       sfx.kaan();sfx.doon(0.13);
       cardCv.classList.remove('slam');void cardCv.offsetWidth;cardCv.classList.add('slam');
@@ -2308,7 +2320,7 @@ function saveImg(){
 /* =========================================================
    図鑑
    ========================================================= */
-const ZKEY='rokuro_zukan_v1';
+const ZKEY='rokuro_zukan_v1',ZDONE='rokuro_zukan_done';
 // 系統ごとの目安シルエット（未発見時の道しるべ）
 const ZHINT={
   tall:{H:330,r:u=>36-6*u},
@@ -2387,6 +2399,23 @@ function zOpen(){
     grid.appendChild(c);
   });
   $('zcount').textContent=found+' / '+IDX.length;
+  const done=found>=IDX.length;$('zcount').classList.toggle('done',done);
+  if(done){
+    // 空いている最後の1マスに「免許皆伝」の朱印
+    const c=document.createElement('div');c.className='zc zdone';
+    const im=document.createElement('img');im.alt='免許皆伝';im.src=makeSeal('免許皆伝',220,1111).toDataURL();c.appendChild(im);
+    const nm=document.createElement('div');nm.className='zn';nm.textContent='十一種 揃い';c.appendChild(nm);
+    grid.appendChild(c);
+    let seen=false;try{seen=localStorage.getItem(ZDONE)==='1';localStorage.setItem(ZDONE,'1');}catch(e){}
+    if(!seen){
+      c.classList.add('drop');
+      setTimeout(()=>{
+        if($('zukan').style.display!=='flex')return;
+        audioInit();sfx.kaan();sfx.doon(0.13);
+        grid.classList.remove('slam');void grid.offsetWidth;grid.classList.add('slam');
+      },640);
+    }
+  }
   $('zukan').style.display='flex';$('zukan').scrollTop=0;
   $('zbtn').classList.remove('new');$('zbtn2').classList.remove('new');
 }
