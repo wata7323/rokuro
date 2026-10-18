@@ -118,6 +118,8 @@ body.sing{--shippo:none;--paper:#121110;--ink:#f1ece4;--sub:#a49b8f;--line:rgba(
 #howto p{margin:0;font-family:var(--mincho);font-size:16px;font-weight:800;letter-spacing:.06em;line-height:1.5}
 #howto p small{display:block;font-size:12px;font-weight:600;color:#6e6458;letter-spacing:.04em}
 #howto .hgo{font-size:12px;color:#6e6458;letter-spacing:.2em;margin-top:6px}
+#hver{position:absolute;right:14px;bottom:calc(env(safe-area-inset-bottom,0px) + 10px);font-family:var(--mincho);font-size:10px;color:#8a7f72;letter-spacing:.06em;font-variant-numeric:tabular-nums;display:flex;align-items:center}
+#hver i{width:1px;height:10px;background:rgba(27,24,20,.2);margin:0 8px}
 #zbtn i,#zbtn2 i{position:absolute;right:8px;top:8px;width:8px;height:8px;background:var(--shu);display:none}
 #zbtn.new i,#zbtn2.new i{display:block}
 #zbtn2{position:relative;background:#4a3d30;color:#f6f1e7;border:0}
@@ -132,6 +134,10 @@ body.sing{--shippo:none;--paper:#121110;--ink:#f1ece4;--sub:#a49b8f;--line:rgba(
 #blist li.me{background:rgba(200,55,26,.08)}
 #blist .bx{grid-column:1/4;text-align:center;font-size:13px;color:#6e6458;max-height:none}
 #blist .bn.anon{color:#8a7f72;font-weight:600}
+/* 総合と器種別の切り替え（開いたときは総合） */
+#btabs{flex:none;display:grid;grid-template-columns:repeat(7,1fr);width:100%;max-width:520px;margin:0 0 8px}
+#btabs button{height:30px;border:0;background:transparent;color:#6e6458;font:700 12px var(--mincho);letter-spacing:0;padding:0;cursor:pointer;white-space:nowrap;touch-action:manipulation}
+#btabs button.on{color:#c8371a;box-shadow:inset 0 -2px 0 #c8371a}
 #bname{flex:none;display:flex;align-items:center;justify-content:center;gap:8px;width:100%;max-width:520px;margin:0 0 8px;font-family:var(--mincho)}
 #bname label{font-size:12px;color:#6e6458;letter-spacing:.06em;white-space:nowrap}
 #bname input{width:9.5em;min-width:0;border:0;border-bottom:1px solid #1b1814;border-radius:0;background:transparent;color:#1b1814;font:800 17px var(--mincho);letter-spacing:.12em;padding:4px 2px;text-align:center;outline:none}
@@ -229,13 +235,13 @@ body.sing{--shippo:none;--paper:#121110;--ink:#f1ece4;--sub:#a49b8f;--line:rgba(
   </div>
 </div>
 <div id="bask"><form class="bk" id="bkform" autocomplete="off">
-  <p class="bkt">番付 第<b id="bkpos">1</b>位</p>
+  <p class="bkt"><span id="bkwho">番付</span> 第<b id="bkpos">1</b>位</p>
   <p class="bks">載せる名前を入れてください（ひらがな6文字まで）</p>
   <input id="bkin" maxlength="12" placeholder="空欄なら名無し" enterkeyhint="done">
   <div id="bkmsg"></div>
   <div class="bkb"><button type="button" id="bkno">載せない</button><button type="submit" id="bkyes">載せる</button></div>
 </form></div>
-<div id="banzuke"><div class="zh"><b>番付</b></div><div class="zs">これまでの鑑定額 上位10</div><form id="bname" autocomplete="off"><label for="bnin">なまえ</label><input id="bnin" maxlength="12" placeholder="ひらがな6文字まで" enterkeyhint="done"><button type="submit">決める</button></form><div id="bnmsg"></div><ol id="blist"></ol><button id="bclose" aria-label="閉じる"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+<div id="banzuke"><div class="zh"><b>番付</b></div><div class="zs" id="bsub">これまでの鑑定額 上位10</div><div id="btabs"></div><form id="bname" autocomplete="off"><label for="bnin">なまえ</label><input id="bnin" maxlength="12" placeholder="ひらがな6文字まで" enterkeyhint="done"><button type="submit">決める</button></form><div id="bnmsg"></div><ol id="blist"></ol><button id="bclose" aria-label="閉じる"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
 <div id="zukan"><div class="zh"><b>図鑑</b><span id="zcount"></span></div><div class="zs">形ごとに、整った器の最高額を残す</div><div id="zgrid"></div><button id="zclose" aria-label="閉じる"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
 <div id="howto">
   <div class="hw"><svg viewBox="0 0 120 84" fill="none" stroke-linecap="round"><path d="M42 78c0-14 8-20 8-30s-6-14-6-20M78 78c0-14-8-20-8-30s6-14 6-20" stroke="#1b1814" stroke-width="2"/><path d="M30 80h60" stroke="#1b1814" stroke-width="2"/><circle cx="96" cy="48" r="7" stroke="#c8371a" stroke-width="2"/><path d="M86 48h-8M82 44l-4 4 4 4" stroke="#c8371a" stroke-width="2"/></svg>
@@ -246,6 +252,10 @@ body.sing{--shippo:none;--paper:#121110;--ink:#f1ece4;--sub:#a49b8f;--line:rgba(
     <p>仕上げは、外から指を添える<small>触れている所は、遠心力で飛ばない</small></p></div>
   <div class="hw"><p>整うほど回転が上がり、時価も上がる<small>崩れたら泥塊。10秒で焼き上がる</small></p></div>
   <div class="hgo" id="hgo">触れて始める</div>
+  <!-- 版（セマンティック バージョニング 主.副.修正）：変更するたびに上げる。
+       修正・小さな調整 → 3つ目（1.0.0→1.0.1）／新しい機能 → 2つ目（1.0.1→1.1.0）／遊び方が大きく変わる → 1つ目（1.1.0→2.0.0）
+       アップロード後、スマホに新しい版が届いたかをここで確かめる -->
+  <div id="hver">作者 わたわたするわた<i></i>ver. 1.1.0</div>
 </div>
 <div id="toast"></div>
 <script>
@@ -1453,7 +1463,10 @@ function singScore(s){
 function singPrice(sp,prog){
   return SING_MIN*Math.pow(SING_BASE/SING_MIN,(prog===undefined?1:prog)*Math.pow(sp,1.2));
 }
-function singRank(v){return v>=5e9?'創世の特異点':(v>=2e9?'神域の特異点':'前衛の特異点');}
+// 特異点の格付：上は大数の単位で段を切る（上位どうしでも差がつくように。worker.js の RANKS と同じ境目）
+const SING_RANKS=[[5e10,'無量大数の特異点'],[3e10,'不可思議の特異点'],[2e10,'那由他の特異点'],[1.5e10,'阿僧祇の特異点'],[1e10,'恒河沙の特異点'],
+  [5e9,'創世の特異点'],[2e9,'神域の特異点'],[0,'前衛の特異点']];
+function singRank(v){return SING_RANKS.find(r=>v>=r[0])[1];}
 // 崩れた器の処分用途：0=土壌へ還付 1=漬物石 2=灰皿
 function scrapUse(m){return m.Htot<65?2:(m.hollowFrac<0.2?1:0);}
 // 崩れた器の値段。ふつうは¥4前後。高値まで育ってから崩れると破片に値が残る（用途・崩れた瞬間の回転でも少し動く。乱数なし）
@@ -1775,7 +1788,8 @@ function updateHUD(){
   if(s.collapsed&&!s.singular)cls='dead';else if(dp.val>=1e7||s.singular)cls='hot';
   if(cls!==lastPriceCls){priceEl.className=cls;rankEl.className=cls;lastPriceCls=cls;}
   const rk=liveRank(dp.val);
-  if(rk!==lastRank){rankEl.textContent=rk;lastRank=rk;}
+  // 7文字以上（恒河沙の特異点 など）は字間と大きさを詰めて欄に収める
+  if(rk!==lastRank){rankEl.textContent=rk;lastRank=rk;const L=rk.length;rankEl.style.letterSpacing=L>6?'0':'';rankEl.style.fontSize=L>7?'12.5px':(L>6?'13.5px':'');}
   let st='';
   if(s.collapsed)st='崩壊　'+s.collapseReason;
   else if(s.bonus)st='ボーナスタイム　特異点確定';
@@ -1872,8 +1886,12 @@ function appraise(f,m){
   const kind=att==='suichu'?'水注':KIND[t3[0].k];
   const ATT_W={katakuchi:'片口',rinka:'輪花',mimi:'耳付',tede:'手付',suichu:''};
   let name,rank,comment,sub='（税込・桐箱付）',disposal='';
+  // 器の名前：形がはっきりしないものは素焼、それ以外は 釉＋形の特徴＋付属＋器種
+  const plain=()=>pick(['信楽','備前','伊賀'],'b')+'素焼'+(hollow?'湯呑':'置物');
+  const shaped=()=>GLAZE_N[glaze]+MID[t3[1].k]+(ATT_W[att]||'')+kind;
   if(f.singular){
-    name='前例なきため未定';
+    // 特異点：「円相・器の名前」（釉は虹彩なので釉の語は付かない）
+    name='円相・'+(sh.score<0.2?plain():shaped());
     rank=singRank(f.price);
     comment='本件は当鑑定所の規定範囲を超えるため、参考価格とする。';
     sub='（参考価格）';
@@ -1891,10 +1909,10 @@ function appraise(f,m){
     else if(f.price>=1e4)rank='民芸品';
     else rank='等外';
     if(sh.score<0.2){
-      name=pick(['信楽','備前','伊賀'],'b')+'素焼'+(hollow?'湯呑':'置物');
+      name=plain();
       comment=COMMENT[rank];
     }else{
-      name=GLAZE_N[glaze]+MID[t3[1].k]+(ATT_W[att]||'')+kind;
+      name=shaped();
       comment=SHAPE_COMMENT[t3[0].k]+COMMENT[rank];
     }
     if(f.price<1e4)sub='（材料費相当）';
@@ -2060,7 +2078,8 @@ function drawSection(g,f,m,x,y,w,h){
   }
 }
 // 印の列の区切りを指定する語（右の列から読む）
-const SEAL_COLS={'産業廃棄物':['産業','廃棄物'],'重要文化財':['重要','文化財']};
+const SEAL_COLS={'産業廃棄物':['産業','廃棄物'],'重要文化財':['重要','文化財'],
+  '不可思議の特異点':['不可思議の','特異点'],'無量大数の特異点':['無量大数の','特異点']};
 function makeSeal(text,size,seed){
   const c=document.createElement('canvas');c.width=c.height=size;
   const g=c.getContext('2d');const rnd=mulberry32(seed^0x5eed);
@@ -2301,7 +2320,8 @@ function shareText(){
 }
 // 共有リンク：結果に合うプレビュー画像のページ（capture/ogp_k.js で作った k/<key>/。画像は og/<key>.jpg）。URL に入るのは決まった記号だけ
 const SHARE_RANK={'人間国宝':'kokuho','重要文化財':'juyo','名品':'meihin','民芸品':'mingei','等外':'togai',
-  '創世の特異点':'sousei','神域の特異点':'shiniki','前衛の特異点':'zenei','鑑定不能':'funo','産業廃棄物':'haiki'};
+  '創世の特異点':'sousei','神域の特異点':'shiniki','前衛の特異点':'zenei','鑑定不能':'funo','産業廃棄物':'haiki',
+  '恒河沙の特異点':'gogasha','阿僧祇の特異点':'asogi','那由他の特異点':'nayuta','不可思議の特異点':'fukashigi','無量大数の特異点':'muryo'};
 function shareKey(f,i){
   const rk=i&&SHARE_RANK[i.rank];
   if(!f||!rk)return '';
@@ -2467,9 +2487,12 @@ function zOpen(){
 }
 function zClose(){$('zukan').style.display='none';}
 /* 番付（ランキング）：サーバーの /api/rank に、なまえ（ひらがな6文字まで）・銘・鑑定額・格付・プレビューの種類だけを送る
-   崩壊は載せない。開発用の自動操作やデバッグを使った回も送らない */
+   総合・器種別（11種）・逆番付（安い順）の3つ。崩壊は逆番付にだけ載る。開発用の自動操作やデバッグを使った回は送らない */
 const RANK_API='/api/rank',RANK_SHOW=10;
-let rankList=null;
+let rankList=null,rankKinds=null,rankLow=null,bView='';   // rankKinds：器種ごとの番付 {tall:[…],…}。rankLow：逆番付（安い順）。bView：''=総合、'low'=逆番付、それ以外は器種
+// 銘の末尾の器種から、器種別の番付の部を決める（worker.js の nameKind と同じ）。素焼・古い特異点の銘は総合だけ
+const KIND_WORDS=Object.entries(ZKIND).concat([['bulge','水注']]).sort((a,b)=>b[1].length-a[1].length);
+function nameKind(n){if(/素焼/.test(n))return '';const w=KIND_WORDS.find(([,w])=>n.endsWith(w));return w?w[0]:'';}
 const rankOn=()=>/^https?:/.test(location.protocol);
 function rankMine(){try{return JSON.parse(localStorage.getItem('rokuro_rank_mine')||'[]');}catch(e){return [];}}
 // なまえ：ひらがなと「ー」で6文字まで。カタカナはひらがなに直す。サーバーでも同じ決まりで確かめる
@@ -2484,19 +2507,30 @@ function nameFix(t){
 function nameGet(){try{return nameFix(localStorage.getItem('rokuro_name'))||'';}catch(e){return '';}}
 function rankFetch(){
   if(!rankOn())return Promise.resolve(null);
-  return fetch(RANK_API,{cache:'no-store'}).then(r=>r.ok?r.json():null).then(j=>{rankList=j&&Array.isArray(j.list)?j.list:null;return rankList;}).catch(()=>null);
+  return fetch(RANK_API,{cache:'no-store'}).then(r=>r.ok?r.json():null).then(j=>{rankTake(j);return rankList;}).catch(()=>null);
+}
+function rankTake(j){
+  if(!j)return;
+  if(Array.isArray(j.list))rankList=j.list;
+  if(j.kinds&&typeof j.kinds==='object')rankKinds=j.kinds;
+  if(Array.isArray(j.low))rankLow=j.low;
 }
 // 番付に入る記録が出たら、載せる前に名前をたずねる（前回の名前を入れておく）
 let rankPending=null;
 function rankSubmit(f,i){
-  if(!rankOn()||DBG.used||(f.collapsed&&!f.singular)||!i)return;
+  if(!rankOn()||DBG.used||!i)return;
   const ask=list=>{
     if(!list)return;
-    // 番付に届かない額はたずねない
-    if(list.length>=RANK_SHOW&&f.price<=list[RANK_SHOW-1].p)return;
-    if(list.some(e=>e.n===i.name&&e.p===f.price))return;
+    // 総合・器種別（その部の上位10）・逆番付（安い順の10）のどれにも届かない額はたずねない。崩壊は逆番付だけ
+    const col=f.collapsed&&!f.singular,kd=col?'':nameKind(i.name),kl=(rankKinds&&kd&&rankKinds[kd])||[];
+    const fits=l=>!(l.length>=RANK_SHOW&&f.price<=l[RANK_SHOW-1].p);
+    const fitsLo=l=>f.price<1e4&&!(l.length>=RANK_SHOW&&f.price>=l[RANK_SHOW-1].p);   // 逆番付は ¥1万未満だけ（worker.js の LOW_MAX）
+    const inAll=!col&&fits(list),inKind=!col&&!!(rankKinds&&kd)&&fits(kl),inLow=!!rankLow&&fitsLo(rankLow);
+    if(!inAll&&!inKind&&!inLow)return;
+    if(!col&&(list.some(e=>e.n===i.name&&e.p===f.price)||kl.some(e=>e.n===i.name&&e.p===f.price)))return;
     rankPending={f,i};
-    $('bkpos').textContent=list.filter(e=>e.p>=f.price).length+1;
+    $('bkwho').textContent=inAll?'番付':(inKind?ZKIND[kd]+'の部':'逆番付');
+    $('bkpos').textContent=inAll||inKind?(inAll?list:kl).filter(e=>e.p>=f.price).length+1:rankLow.filter(e=>e.p<=f.price).length+1;
     $('bkin').value=nameGet();$('bkmsg').textContent='';
     $('bask').style.display='flex';
   };
@@ -2518,19 +2552,32 @@ function rankSend(f,i,u){
   fetch(RANK_API,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)})
     .then(r=>r.ok?r.json():null).then(j=>{
       if(!j){toast('番付に載せられませんでした');return;}
-      if(Array.isArray(j.list))rankList=j.list;
-      if(j.pos&&j.id){
+      rankTake(j);
+      if((j.pos||j.kpos||j.lpos)&&j.id){
         const m=rankMine();m.push(j.id);try{localStorage.setItem('rokuro_rank_mine',JSON.stringify(m.slice(-50)));}catch(e){}
-        toast('番付 第'+j.pos+'位に載りました');
+        const t=[];
+        if(j.pos)t.push('番付 第'+j.pos+'位');
+        if(j.kpos&&ZKIND[j.kind])t.push(ZKIND[j.kind]+'の部 第'+j.kpos+'位');
+        if(j.lpos)t.push('逆番付 第'+j.lpos+'位');
+        toast(t.join('・')+'に載りました');
       }else toast('わずかに番付に届きませんでした');
     }).catch(()=>toast('番付に載せられませんでした'));
 }
+// 総合・逆番付＋11器種の切り替え。押した部の10件を出す
+const btabs=$('btabs');
+['','low'].concat(IDX.map(ix=>ix.k)).forEach(k=>{
+  const b=document.createElement('button');b.type='button';b.dataset.k=k;b.textContent=k==='low'?'逆番付':(k?ZKIND[k]:'総合');
+  b.addEventListener('click',()=>{bView=k;bRender();});btabs.appendChild(b);
+});
 function bRender(){
   const ol=$('blist');ol.innerHTML='';
-  if(!rankList){const li=document.createElement('li');li.className='bx';li.textContent=rankOn()?'番付を読み込めませんでした':'公開ページでのみ表示されます';ol.appendChild(li);return;}
-  if(!rankList.length){const li=document.createElement('li');li.className='bx';li.textContent='まだ記録がありません';ol.appendChild(li);return;}
+  btabs.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.k===bView));
+  $('bsub').textContent=bView==='low'?'これまでの鑑定額 下位10':(bView?ZKIND[bView]+'の部 上位10':'これまでの鑑定額 上位10');
+  const list=bView==='low'?rankLow:(bView?(rankKinds?(rankKinds[bView]||[]):null):rankList);
+  if(!list){const li=document.createElement('li');li.className='bx';li.textContent=rankOn()?'番付を読み込めませんでした':'公開ページでのみ表示されます';ol.appendChild(li);return;}
+  if(!list.length){const li=document.createElement('li');li.className='bx';li.textContent='まだ記録がありません';ol.appendChild(li);return;}
   const mine=rankMine();
-  rankList.slice(0,RANK_SHOW).forEach((e,n)=>{
+  list.slice(0,RANK_SHOW).forEach((e,n)=>{
     const li=document.createElement('li');if(mine.includes(e.id))li.className='me';
     const d=new Date(e.t);
     const c=(cls,t)=>{const x=document.createElement('span');x.className=cls;x.textContent=t;li.appendChild(x);};
@@ -2555,7 +2602,7 @@ $('bname').addEventListener('submit',e=>{
   $('bnin').value=v;$('bnin').blur();
   m.textContent=v?'「'+v+'」で番付に載ります':'名無しで番付に載ります';m.className='';
 });
-function bOpen(){$('bnin').value=nameGet();$('bnmsg').textContent='';$('bnmsg').className='';bRender();$('banzuke').style.display='flex';rankFetch().then(()=>{if($('banzuke').style.display==='flex')bRender();});}
+function bOpen(){bView='';$('bnin').value=nameGet();$('bnmsg').textContent='';$('bnmsg').className='';bRender();$('banzuke').style.display='flex';rankFetch().then(()=>{if($('banzuke').style.display==='flex')bRender();});}
 function bClose(){$('banzuke').style.display='none';}
 $('bbtn').addEventListener('pointerdown',e=>{e.stopPropagation();});
 $('bbtn').addEventListener('click',()=>{if(S.phase==='play'&&!S.started)bOpen();});
