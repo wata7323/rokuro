@@ -255,7 +255,7 @@ body.sing{--shippo:none;--paper:#121110;--ink:#f1ece4;--sub:#a49b8f;--line:rgba(
   <!-- 版（セマンティック バージョニング 主.副.修正）：変更するたびに上げる。
        修正・小さな調整 → 3つ目（1.0.0→1.0.1）／新しい機能 → 2つ目（1.0.1→1.1.0）／遊び方が大きく変わる → 1つ目（1.1.0→2.0.0）
        アップロード後、スマホに新しい版が届いたかをここで確かめる -->
-  <div id="hver">作者 わたわたするわた<i></i>ver. 1.2.2</div>
+  <div id="hver">作者 わたわたするわた<i></i>ver. 1.4.0</div>
 </div>
 <div id="toast"></div>
 <script>
@@ -1424,6 +1424,7 @@ function checkCollapse(){
 function collapse(reason){
   const s=S;
   s.collapsed=true;s.collapseReason=reason;s.collapseT=0;
+  s.preK=s.shape?s.shape.top[0].d.k:'';   // 崩れる直前の形（調整用の記録に「作ろうとしていた器」として残す）
   s.collapseTime=Math.round(s.elapsed*10)/10;s.collapseRpm=Math.round(s.rpm);s.shake=16;s.chaos=0;
   sfx.crash();
   const Ht=s.lh*N;
@@ -1590,9 +1591,12 @@ function fire(){
     lh:s.lh,rpm:s.rpm,rpmMax:Math.max(s.rpmMax,s.rpm),collapsed:s.collapsed,singular:s.singular,reason:s.collapseReason,q:s.q,chaos:s.chaos,theta:s.theta,
     peakPrice:s.peakPrice,collapseTime:s.collapseTime,collapseRpm:s.collapseRpm};
   sfx.explosion();
-  // 完成なら器種も添える（鑑定書の銘と同じ決め方：形がはっきりしない素焼は器種なし）
-  const done=!(s.final.collapsed&&!s.final.singular),sh=done?shapeEval(metrics(s.final)):null;
-  playCount(done,sh&&sh.score>=0.2?sh.top[0].d.k:'');
+  // 完成なら器種も添える（鑑定書の銘と同じ決め方：形がはっきりしない素焼は器種なし）。あわせて調整用の記録を作る
+  const f=s.final,done=!(f.collapsed&&!f.singular),m=metrics(f),sh=shapeEval(m),info=appraise(f,m);
+  playCount(done,done&&sh.score>=0.2?sh.top[0].d.k:'',{
+    res:f.singular?'s':(f.collapsed?'c':'n'),reason:done?'':f.reason,ctime:f.collapseTime,
+    top:sh.top.map(t=>[t.d.k,+t.raw.toFixed(3)]),score:+sh.score.toFixed(3),q:+clamp(s.q,0,1).toFixed(3),
+    price:fp,peak:Math.round(f.peakPrice||0),rank:info.rank,glaze:info.glaze,rpm:Math.round(f.rpmMax),zone:+s.zoneTime.toFixed(2),pre:s.preK||''});
   shojiClose(false);shojiEl.classList.add('glow');
   s.shake=20;
   pointers.clear();
@@ -2526,15 +2530,22 @@ function rankSubmit(f,i){
   const ask=list=>{
     if(!list)return;
     // 総合・器種別（その部の上位10）・逆番付（安い順の10）のどれにも届かない額はたずねない。崩壊は逆番付だけ
-    const col=f.collapsed&&!f.singular,kd=col?'':nameKind(i.name),kl=(rankKinds&&kd&&rankKinds[kd])||[];
-    const fits=l=>!(l.length>=RANK_SHOW&&f.price<=l[RANK_SHOW-1].p);
-    const fitsLo=l=>f.price<1e4&&!(l.length>=RANK_SHOW&&f.price>=l[RANK_SHOW-1].p);   // 逆番付は ¥1万未満だけ（worker.js の LOW_MAX）
-    const inAll=!col&&fits(list),inKind=!col&&!!(rankKinds&&kd)&&fits(kl),inLow=!!rankLow&&fitsLo(rankLow);
-    if(!inAll&&!inKind&&!inLow)return;
+    // 1人1件：この端末の記録が既にある番付では、それより良いときだけ（自己ベスト更新）。順位は自分の古い記録を除いて数える
+    const col=f.collapsed&&!f.singular,kd=col?'':nameKind(i.name),kl=(rankKinds&&kd&&rankKinds[kd])||[],mine=rankMine();
+    const better=(a,b,dir)=>dir>0?a>b:a<b;
+    const plan=(l,dir,ok)=>{
+      if(!ok)return null;
+      const me=l.findIndex(e=>mine.includes(e.id));
+      if(me>=0&&!better(f.price,l[me].p,dir))return null;
+      const rest=me>=0?l.filter((_,j)=>j!==me):l;
+      return rest.length<RANK_SHOW||better(f.price,rest[RANK_SHOW-1].p,dir)?rest:null;
+    };
+    const pA=plan(list,1,!col),pK=plan(kl,1,!col&&!!(rankKinds&&kd)),pL=plan(rankLow||[],-1,!!rankLow&&f.price<1e4);   // 逆番付は ¥1万未満だけ（worker.js の LOW_MAX）
+    if(!pA&&!pK&&!pL)return;
     if(!col&&(list.some(e=>e.n===i.name&&e.p===f.price)||kl.some(e=>e.n===i.name&&e.p===f.price)))return;
     rankPending={f,i};
-    $('bkwho').textContent=inAll?'番付':(inKind?ZKIND[kd]+'の部':'逆番付');
-    $('bkpos').textContent=inAll||inKind?(inAll?list:kl).filter(e=>e.p>=f.price).length+1:rankLow.filter(e=>e.p<=f.price).length+1;
+    $('bkwho').textContent=pA?'番付':(pK?ZKIND[kd]+'の部':'逆番付');
+    $('bkpos').textContent=pA||pK?(pA||pK).filter(e=>e.p>=f.price).length+1:pL.filter(e=>e.p<=f.price).length+1;
     $('bkin').value=nameGet();$('bkmsg').textContent='';
     $('bask').style.display='flex';
   };
@@ -2551,21 +2562,66 @@ $('bkform').addEventListener('submit',e=>{
 });
 $('bkno').addEventListener('click',bkClose);
 $('bask').addEventListener('pointerdown',e=>e.stopPropagation());
+// 端末番号：番付の「1人1件」のための乱数。この端末に覚え、記録と一緒に送る（サーバーではハッシュにして持ち、外には出さない）
+function devId(){
+  let d='';try{d=localStorage.getItem('rokuro_dev')||'';}catch(e){}
+  if(!/^[0-9a-f]{16,32}$/.test(d)){
+    const a=new Uint8Array(12);crypto.getRandomValues(a);d=[...a].map(x=>x.toString(16).padStart(2,'0')).join('');
+    try{localStorage.setItem('rokuro_dev',d);}catch(e){}
+  }
+  return d;
+}
+/* 送信待ち：番付の登録とプレイ数の送信が、通信の失敗・サーバーの不調・更新の切り替え中などで届かなかったら、
+   端末に控えて あとで送り直す（ページを開いたとき・番付を開いたとき・次の送信が届いた直後）。
+   中身が不正で弾かれたもの、7日たったもの、5回失敗したものは捨てる。プレイ数は1回ごとの番号付きなので、送り直しても二重に数えない */
+const OUTBOX='rokuro_outbox',OB_URL={rank:RANK_API,play:'/api/play'};
+function obLoad(){try{const a=JSON.parse(localStorage.getItem(OUTBOX)||'[]');return Array.isArray(a)?a:[];}catch(e){return [];}}
+function obSave(a){try{localStorage.setItem(OUTBOX,JSON.stringify(a.slice(-30)));}catch(e){}}
+function obPush(kind,body){const a=obLoad();a.push({kind,body,t:Date.now(),n:0});obSave(a);}
+// 送る：'ok'＝届いた、'drop'＝中身が弾かれた（送り直さない）、'retry'＝あとで送り直す
+function obPost(kind,body){
+  return fetch(OB_URL[kind],{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body),keepalive:true})
+    .then(r=>r.json().catch(()=>null).then(j=>({v:r.ok&&j&&!j.error?'ok':(r.status===400||r.status===405?'drop':'retry'),j})))
+    .catch(()=>({v:'retry',j:null}));
+}
+let obBusy=false,obTimer=0;
+// 連続送信の制限（番付10秒・プレイ数8秒）にかからないよう、1件ずつ 11秒あけて送る
+function obFlushSoon(ms){clearTimeout(obTimer);obTimer=setTimeout(obFlush,ms===undefined?11000:ms);}
+function obFlush(){
+  if(obBusy||!rankOn())return;
+  let a=obLoad();
+  a=a.filter(x=>x&&OB_URL[x.kind]&&Date.now()-x.t<7*86400e3&&x.n<5);obSave(a);
+  if(!a.length)return;
+  const x=a[0];obBusy=true;
+  obPost(x.kind,x.body).then(({v,j})=>{
+    obBusy=false;
+    const b=obLoad(),i=b.findIndex(y=>y.t===x.t&&y.kind===x.kind);
+    if(v==='retry'){if(i>=0){b[i].n++;obSave(b);}return;}
+    if(i>=0){b.splice(i,1);obSave(b);}
+    if(v==='ok'&&x.kind==='rank')rankDone(j,true);
+    if(b.length)obFlushSoon();
+  });
+}
+// 番付に送った結果を知らせる。queued は送信待ちから送り直した分
+function rankDone(j,queued){
+  rankTake(j);
+  if($('banzuke').style.display==='flex')bRender();
+  if((j.pos||j.kpos||j.lpos)&&j.id){
+    const m=rankMine();m.push(j.id);try{localStorage.setItem('rokuro_rank_mine',JSON.stringify(m.slice(-50)));}catch(e){}
+    const t=[];
+    if(j.pos)t.push('番付 第'+j.pos+'位');
+    if(j.kpos&&ZKIND[j.kind])t.push(ZKIND[j.kind]+'の部 第'+j.kpos+'位');
+    if(j.lpos)t.push('逆番付 第'+j.lpos+'位');
+    toast((queued?'保留していた記録が ':'')+t.join('・')+'に載りました'+(j.best?'（自己ベスト更新）':''));
+  }else if(!queued)toast('わずかに番付に届きませんでした');
+}
 function rankSend(f,i,u){
-  const body={n:i.name,p:f.price,r:i.rank,k:shareKey(f,i),u};
-  fetch(RANK_API,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)})
-    .then(r=>r.ok?r.json():null).then(j=>{
-      if(!j){toast('番付に載せられませんでした');return;}
-      rankTake(j);
-      if((j.pos||j.kpos||j.lpos)&&j.id){
-        const m=rankMine();m.push(j.id);try{localStorage.setItem('rokuro_rank_mine',JSON.stringify(m.slice(-50)));}catch(e){}
-        const t=[];
-        if(j.pos)t.push('番付 第'+j.pos+'位');
-        if(j.kpos&&ZKIND[j.kind])t.push(ZKIND[j.kind]+'の部 第'+j.kpos+'位');
-        if(j.lpos)t.push('逆番付 第'+j.lpos+'位');
-        toast(t.join('・')+'に載りました');
-      }else toast('わずかに番付に届きませんでした');
-    }).catch(()=>toast('番付に載せられませんでした'));
+  const body={n:i.name,p:f.price,r:i.rank,k:shareKey(f,i),u,d:devId()};
+  obPost('rank',body).then(({v,j})=>{
+    if(v==='ok'){rankDone(j,false);obFlushSoon();}
+    else if(v==='retry'){obPush('rank',body);toast('通信できませんでした。あとで番付に送り直します');}
+    else toast('番付に載せられませんでした');
+  });
 }
 // 総合・逆番付＋11器種の切り替え。押した部の10件を出す
 const btabs=$('btabs');
@@ -2594,11 +2650,15 @@ function bRender(){
     ol.appendChild(li);
   });
 }
-// プレイ数：焼成のたびに1回。この端末で初めてなら「新しい人」として数える。崩れずに焼き上がった回は「完成」としても数える（中身は回数だけ）
-function playCount(done,kind){
+// プレイ数：焼成のたびに1回。この端末で初めてなら「新しい人」として数える。崩れずに焼き上がった回は「完成」としても数える
+// あわせて調整用の記録 log（形・額・崩壊など。名前や端末番号は含まない）と版を送る。e は1回ごとの番号（送り直しで二重に数えない）
+const APP_VER=(($('hver')&&$('hver').textContent.match(/ver\. ?([\d.]+)/))||[])[1]||'';
+function playCount(done,kind,log){
   if(!rankOn()||DBG.used)return;
   let first=false;try{first=!localStorage.getItem('rokuro_played');localStorage.setItem('rokuro_played','1');}catch(e){}
-  fetch('/api/play',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({f:first?1:0,c:done?1:0,k:kind||''}),keepalive:true}).catch(()=>{});
+  const a=new Uint8Array(12);crypto.getRandomValues(a);
+  const body={f:first?1:0,c:done?1:0,k:kind||'',e:[...a].map(x=>x.toString(16).padStart(2,'0')).join(''),v:APP_VER,l:log||null};
+  obPost('play',body).then(({v})=>{if(v==='retry')obPush('play',body);else if(v==='ok')obFlushSoon();});
 }
 // なまえ欄：決めると端末に覚え、次から番付に送る記録に付く（すでに載った記録は変わらない）
 $('bname').addEventListener('submit',e=>{
@@ -2609,7 +2669,7 @@ $('bname').addEventListener('submit',e=>{
   $('bnin').value=v;$('bnin').blur();
   m.textContent=v?'「'+v+'」で番付に載ります':'名無しで番付に載ります';m.className='';
 });
-function bOpen(){bView='';$('bnin').value=nameGet();$('bnmsg').textContent='';$('bnmsg').className='';bRender();$('banzuke').style.display='flex';rankFetch().then(()=>{if($('banzuke').style.display==='flex')bRender();});}
+function bOpen(){bView='';$('bnin').value=nameGet();$('bnmsg').textContent='';$('bnmsg').className='';bRender();$('banzuke').style.display='flex';rankFetch().then(()=>{if($('banzuke').style.display==='flex')bRender();});obFlushSoon(0);}
 function bClose(){$('banzuke').style.display='none';}
 $('bbtn').addEventListener('pointerdown',e=>{e.stopPropagation();});
 $('bbtn').addEventListener('click',()=>{if(S.phase==='play'&&!S.started)bOpen();});
@@ -2620,6 +2680,7 @@ $('sbtn').addEventListener('pointerdown',e=>{e.stopPropagation();});
 $('sbtn').addEventListener('click',()=>{audioInit();setSound(!soundOn);});
 setSound(soundOn);
 rankFetch();
+obFlushSoon(3000);   // 前に届かなかった送信があれば、開いて少ししてから送り直す
 // 遊び方：最初の1回だけ自動で出す。以降は「？」から
 const HKEY='rokuro_howto_v1';
 function hOpen(first){$('hgo').textContent=first?'触れて始める':'触れて閉じる';$('howto').style.display='flex';}
