@@ -339,7 +339,7 @@ precision mediump float;
 #endif
 varying vec3 vPos;varying vec3 vNor;varying vec3 vAux;varying float vPool;
 uniform vec3 uEye;
-uniform float uRot,uBlur,uHeat,uMode,uTime,uSeed,uKind,uBaseR,uTopY,uWet;
+uniform float uRot,uBlur,uHeat,uMode,uTime,uSeed,uKind,uBaseR,uTopY,uWet,uMark;
 float hash(vec3 p){p=fract(p*0.3183099+vec3(0.71,0.113,0.419));p*=17.0;return fract(p.x*p.y*p.z*(p.x+p.y+p.z));}
 float noise(vec3 x){
   vec3 i=floor(x);vec3 f=fract(x);f=f*f*(3.0-2.0*f);
@@ -517,6 +517,16 @@ void main(){
     col+=vec3(1.0,0.9,0.8)*d3*0.15*(1.0-inner);
     col+=vec3(0.92,0.95,1.0)*pow(1.0-NV,3.0)*0.55*(1.0-inner);
   }
+  // 回転の目印：外側に縦の化粧土の筋を1本（プレイ中だけ。鑑定書・図鑑には出さない）。
+  // 速くなるほど回る向きの後ろへ尾を引いて薄くなり、残像の帯になる
+  if(uMark>0.5){
+    float da=mod(ang+0.12*sin(y*0.045)+3.14159265,6.2831853)-3.14159265;
+    float wf=0.075,wb=0.075+uBlur*1.5;
+    float e=da>0.0?da/wf:-da/wb;
+    float stripe=(1.0-smoothstep(0.45,1.0,e))*(da>0.0?1.0:1.0-0.6*e)/(1.0+uBlur*0.6);
+    stripe*=(1.0-inner)*smoothstep(4.0,9.0,y)*smoothstep(0.0,4.0,uTopY-y+4.0);
+    col=mix(col,uMode<0.5?col*vec3(1.42,1.36,1.3)+vec3(0.05,0.04,0.03):col*0.35,clamp(stripe,0.0,1.0)*0.85);
+  }
   col=mix(col,vec3(1.0,0.42,0.08)*1.3,uHeat*0.85)+vec3(1.0,0.6,0.2)*uHeat*uHeat*0.5;
   col=col/(1.0+col*0.12);
   gl_FragColor=vec4(col,1.0);
@@ -629,7 +639,7 @@ function createRenderer(canvas,preserve){
   if(!gl.getProgramParameter(prog,gl.LINK_STATUS)){console.error(gl.getProgramInfoLog(prog));return null;}
   const A={pos:gl.getAttribLocation(prog,'aPos'),nor:gl.getAttribLocation(prog,'aNor'),aux:gl.getAttribLocation(prog,'aAux'),pool:gl.getAttribLocation(prog,'aPool')};
   const U={};
-  ['uVP','uEye','uRot','uBlur','uHeat','uMode','uTime','uSeed','uKind','uBaseR','uTopY','uWet'].forEach(n=>U[n]=gl.getUniformLocation(prog,n));
+  ['uVP','uEye','uRot','uBlur','uHeat','uMode','uTime','uSeed','uKind','uBaseR','uTopY','uWet','uMark'].forEach(n=>U[n]=gl.getUniformLocation(prog,n));
   // ろくろ（静的メッシュ）
   const WR=150;
   const bands=[
@@ -818,6 +828,7 @@ function createRenderer(canvas,preserve){
     gl.uniform1f(U.uBaseR,o.st.r[0]);
     gl.uniform1f(U.uTopY,o.st.lh*N);
     gl.uniform1f(U.uWet,o.wet);
+    gl.uniform1f(U.uMark,o.mark?1:0);
     if(o.wheel){
       gl.uniform1f(U.uKind,1);
       gl.bindBuffer(gl.ARRAY_BUFFER,wVB);gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,wIB);bindAttribs();
@@ -985,8 +996,15 @@ function audioInit(){
   const clayGain=c.createGain();clayGain.gain.value=0;
   cs1.connect(clayBp);cs2.connect(cs2g);cs2g.connect(clayBp);clayBp.connect(clayGain);clayGain.connect(AU.dry);
   cs1.start();cs2.start(0,0.7);
+  // 1回転ごとの風切り音：白ノイズ → バンドパス → ゲイン → 左右。部品は最初に1組だけ作り、鳴らすたびに作らない（スマホで重くしない）
+  const ws=c.createBufferSource();ws.buffer=nb;ws.loop=true;
+  const wbp=c.createBiquadFilter();wbp.type='bandpass';wbp.Q.value=1.3;wbp.frequency.value=700;
+  const wg=c.createGain();wg.gain.value=0;
+  const wp=c.createStereoPanner?c.createStereoPanner():null;
+  ws.connect(wbp);wbp.connect(wg);if(wp){wg.connect(wp);wp.connect(AU.dry);}else wg.connect(AU.dry);
+  ws.start(0,1.3);
   AU.rg=rg;
-  AU.m={mg,mlp,rlp,o1,o2,o3,bp,jg,o4,o4g,lfo,lfg,clayBp,clayGain};
+  AU.m={mg,mlp,rlp,o1,o2,o3,bp,jg,o4,o4g,lfo,lfg,clayBp,clayGain,wbp,wg,wp};
 }
 // AudioParam の更新：前回とほぼ同じ値なら出し直さない（スマホで予定が積み重なって重くなるのを防ぐ）
 function setP(p,v,t,tc){
@@ -1012,6 +1030,14 @@ function audioClay(act,rpmF,hFrac,on,now){
   if(t-(AU.clayT||0)<0.05)return;AU.clayT=t;
   const f=350+1050*clamp(0.45*hFrac+0.4*rpmF+0.25*a,0,1)*(0.9+Math.random()*0.2);
   setP(m.clayBp.frequency,f,t,0.04);
+}
+// 風切り音を1回：dur 秒かけて膨らんで消え、音の高さは近づくと上がり離れると下がる。dir は左右の流れる向き（1=左→右）
+function audioWhoosh(rpmF,dur,dir){
+  if(!AU.ctx||!AU.m)return;
+  const t=AU.ctx.currentTime,m=AU.m,f=450+rpmF*1500,v=0.03+0.2*Math.pow(rpmF,1.3);
+  m.wg.gain.cancelScheduledValues(t);m.wg.gain.setTargetAtTime(v,t,dur*0.22);m.wg.gain.setTargetAtTime(0,t+dur*0.5,dur*0.28);
+  m.wbp.frequency.cancelScheduledValues(t);m.wbp.frequency.setTargetAtTime(f*1.25,t,dur*0.22);m.wbp.frequency.setTargetAtTime(f*0.8,t+dur*0.5,dur*0.3);
+  if(m.wp){m.wp.pan.cancelScheduledValues(t);m.wp.pan.setTargetAtTime(-0.5*dir,t,0.015);m.wp.pan.setTargetAtTime(0.5*dir,t+0.04,dur*0.4);}
 }
 // 鑑定の溜めの間は残響を絞る
 function audioDuck(on){
@@ -1649,7 +1675,7 @@ function render(){
   if(R){
     R.draw({st:s,theta:s.theta,cam,w:glCv.width,h:glCv.height,blur:s.phase==='play'?Math.pow(s.rpmF,1.3):0,
       heat:s.phase==='play'?0:clamp(s.fireT/0.4,0,1),mode:(s.singular||s.zone)?4:0,time:T,seed:1.37,wheel:true,wet:1,
-      warp:s.phase==='play'?0:clamp(s.fireT/0.4,0,1)});
+      warp:s.phase==='play'?0:clamp(s.fireT/0.4,0,1),mark:s.phase==='play'&&!s.collapsed});
   }
   fx.clearRect(0,0,W,H);
   if(!R){drawWheel2D();drawClay2D();}
@@ -1664,6 +1690,38 @@ function render(){
     }
     fx.restore();
   }
+  // 風を切る線：器のまわりを回る向きに流れる弧（手前側だけ）。速いほど本数が増えて長く濃くなる
+  // 器の目印（筋）は角度 theta の向きにある。カメラは +z 側なので手前は角度 π/2
+  const FRONT=Math.PI/2;
+  if(s.phase==='play'&&!s.collapsed&&s.rpmF>0.12){
+    const Ht=s.lh*N,n=3+Math.round(s.rpmF*7),al=Math.min(0.65,0.12+(s.rpmF-0.12)*0.9),len=0.6+s.rpmF*1.8,SG=16;
+    fx.save();fx.strokeStyle=s.singular||s.zone?'#f1ece4':'#1b1814';fx.lineCap='butt';
+    for(let i=0;i<n;i++){
+      const hy=Ht*(0.1+0.82*((i*0.618)%1)),k=clamp(Math.floor(hy/s.lh),0,N-1),rr=s.r[k]*1.12+14+(i%3)*11;
+      const head=s.theta*1.35+i*2.39;
+      let prev=null;
+      for(let j=0;j<=SG;j++){
+        const a=head-len*j/SG,fr=Math.cos(a-FRONT),p=project(rr*Math.cos(a),hy,rr*Math.sin(a));
+        if(prev&&fr>0.05){
+          fx.globalAlpha=al*Math.pow(1-j/SG,0.6)*Math.min(1,fr*3);fx.lineWidth=1+2.2*(1-j/SG);
+          fx.beginPath();fx.moveTo(prev[0],prev[1]);fx.lineTo(p[0],p[1]);fx.stroke();
+        }
+        prev=p;
+      }
+    }
+    fx.restore();
+  }
+  // 1回転ごとの風切り音：目印が手前に来る少し前に鳴らし始め、通り過ぎる向きに左右を流す
+  if(s.phase==='play'&&s.started&&!s.collapsed){
+    const lead=0.7,u=s.theta-FRONT+lead,n=Math.floor(u/(Math.PI*2));
+    if(s.whooshN!==undefined&&n>s.whooshN){
+      const w=Math.PI*2*(0.6+s.rpmF*2.4),Ht=s.lh*N;
+      const p1=project(Math.cos(FRONT)*40,Ht*0.5,Math.sin(FRONT)*40),p2=project(Math.cos(FRONT+0.1)*40,Ht*0.5,Math.sin(FRONT+0.1)*40);
+      // 長さは1回転の間隔に対する割合。速いほど次の音とつながって、うなりのように続く
+      audioWhoosh(s.rpmF,Math.PI*2/w*(0.35+0.5*s.rpmF),p2[0]>p1[0]?1:-1);
+    }
+    s.whooshN=n;
+  }else s.whooshN=undefined;
   // なぞり方ガイド
   if(!s.started&&s.phase==='play'&&pointers.size===0){
     const u=(T*0.45)%1.25;
