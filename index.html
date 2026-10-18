@@ -258,7 +258,7 @@ body.sing{--shippo:none;--paper:#121110;--ink:#f1ece4;--sub:#a49b8f;--line:rgba(
   <!-- 版（セマンティック バージョニング 主.副.修正）：変更するたびに上げる。
        修正・小さな調整 → 3つ目（1.0.0→1.0.1）／新しい機能 → 2つ目（1.0.1→1.1.0）／遊び方が大きく変わる → 1つ目（1.1.0→2.0.0）
        アップロード後、スマホに新しい版が届いたかをここで確かめる -->
-  <div id="hver"><div class="hv1">作者 わたわたするわた<i></i>ver. 1.5.1</div><a id="hx" href="https://x.com/watawatasuruwat" target="_blank" rel="noopener">X:@watawatasuruwat</a></div>
+  <div id="hver"><div class="hv1">作者 わたわたするわた<i></i>ver. 1.5.2</div><a id="hx" href="https://x.com/watawatasuruwat" target="_blank" rel="noopener">X:@watawatasuruwat</a></div>
 </div>
 <div id="toast"></div>
 <script>
@@ -3061,22 +3061,35 @@ window.addEventListener('keydown',e=>{
   if(i>=0&&i<ks.length){e.preventDefault();audioInit();tasStart(ks[i]);}
   else if(e.code==='Space'&&DBG.tasLast){e.preventDefault();tasStart(DBG.tasLast);}
 });
-// URLに ?debug か ?tas= があるときだけ解錠。開始前に左上（残り時間の辺り）を素早く5回タップしても解錠できる
-DBG.unlocked=/[?&](debug\b|tas=)/.test(location.search);
+// デバッグは作者だけ：手元のファイル（file://・localhost）か、集計ページを合言葉で開いたことのある端末だけ解錠する。
+// 集計ページが端末に置く合言葉由来の札（rokuro_dbg_t）を、サーバーに確かめてもらってから使えるようにする（札は合言葉なしには作れない）。
+// 解錠した端末では ?debug・?tas=・開始前の左上5回タップ・「`」キーが使える。ほかの人には何も起きない
+const DBG_LOCAL=location.protocol==='file:'||/^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+DBG.unlocked=false;
+function dbgUnlock(){
+  DBG.unlocked=true;
+  if(/[?&]debug\b/.test(location.search))dbgToggle(true);
+  const mt=location.search.match(/[?&]tas=(\w+)/);if(mt&&TAS_PLANS[mt[1]])setTimeout(()=>tasStart(mt[1]),700);
+}
+if(DBG_LOCAL)dbgUnlock();
+else{
+  let t='';try{t=localStorage.getItem('rokuro_dbg_t')||'';}catch(e){}
+  if(/^[0-9a-f]{32}$/.test(t))fetch('/api/dbg',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({t})})
+    .then(r=>r.ok?r.json():null).then(j=>{if(j&&j.ok)dbgUnlock();}).catch(()=>{});
+}
 {
-  // 画面を覆う要素は置かず、開始前の左上タップだけを先取りする（プレイ中の操作は一切妨げない）
+  // 画面を覆う要素は置かず、開始前の左上タップだけを先取りする（解錠した端末だけ。プレイ中の操作は一切妨げない）
   let taps=[];
   window.addEventListener('pointerdown',e=>{
+    if(!DBG.unlocked)return;
     if(!S||S.started||S.phase!=='play'||e.clientX>110||e.clientY>80)return;
     if(e.target&&e.target.closest&&e.target.closest('button,#dbg-panel,#zukan,#result,#howto,#banzuke,#bask'))return;
     e.stopPropagation();e.preventDefault();
     const now=performance.now();
     taps=taps.filter(t=>now-t<1500);taps.push(now);
-    if(taps.length>=5){taps=[];DBG.unlocked=true;dbgToggle(true);toast('デバッグを解錠しました');}
+    if(taps.length>=5){taps=[];dbgToggle(true);}
   },true);
 }
-if(/[?&]debug\b/.test(location.search))dbgToggle(true);
-{const mt=location.search.match(/[?&]tas=(\w+)/);if(mt&&TAS_PLANS[mt[1]])setTimeout(()=>tasStart(mt[1]),700);}
 
 /* =========================================================
    メインループ
