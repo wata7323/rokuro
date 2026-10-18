@@ -323,6 +323,22 @@ async function keyOk(given,env){
   const a=await h(given),b=await h(want);
   return crypto.subtle.timingSafeEqual(a,b);
 }
+// デバッグの札：合言葉から作る（合言葉を変えると、それまでの札は使えなくなる）。集計ページを開いた端末に置き、ゲームが /api/dbg で確かめる
+async function dbgToken(env){
+  if(typeof env.STATS_KEY!=='string'||!env.STATS_KEY)return '';
+  const h=new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode('rokuro-dbg:'+env.STATS_KEY)));
+  return [...h.slice(0,16)].map(x=>x.toString(16).padStart(2,'0')).join('');
+}
+async function dbgCheck(req,env){
+  if(req.method!=='POST')return json({error:'method'},405);
+  // 札の総当たりを防ぐ：外れたら、同じ端末からは5秒待たないと次を試せない
+  if(await rateHas(req,'dbgng'))return json({ok:false},429);
+  let b={};try{b=await req.json();}catch(e){}
+  const want=await dbgToken(env),t=b&&typeof b.t==='string'?b.t:'';
+  const ok=!!want&&t.length===want.length&&crypto.subtle.timingSafeEqual(new TextEncoder().encode(t),new TextEncoder().encode(want));
+  if(!ok)await rateMark(req,'dbgng',5);
+  return json({ok});
+}
 const esc=t=>String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const yen=p=>'¥'+Number(p).toLocaleString('ja-JP');
 const CSS=`body{margin:0;padding:16px;background:#ebe5d9;color:#1b1814;font-family:"Hiragino Mincho ProN","Yu Mincho",serif}h1{font-size:20px;margin:0 0 12px}h2{font-size:16px;margin:28px 0 8px}
@@ -357,7 +373,7 @@ async function stats(req,env){
     try{return new Response('﻿'+await board(env).csv(),{headers:{'content-type':'text/csv; charset=utf-8','content-disposition':'attachment; filename="rokuro_plays.csv"','cache-control':'no-store'}});}
     catch(e){return loginPage('switch');}
   }
-  try{return await statsBody(env,k,a,id,ver);}catch(e){return loginPage('switch');}
+  try{return await statsBody(env,k,a,id,ver,await dbgToken(env));}catch(e){return loginPage('switch');}
 }
 // 額を短く（1.2億・340万・980）
 const short=p=>p>=1e8?(p/1e8).toFixed(p>=1e9?0:1)+'億':(p>=1e4?Math.round(p/1e4).toLocaleString()+'万':String(Math.round(p)));
@@ -380,7 +396,7 @@ function analysisHtml(A,ver,hk){
 <p><small>崩壊は、崩れる直前の形の1番目で数える。回数＝その器種の完成＋崩壊。</small></p>
 <form class="k" method="post" action="/stats">${hk}<input type="hidden" name="a" value="csv"><button>記録を CSV で保存（直近5万件）</button></form>`;
 }
-async function statsBody(env,k,a,id,ver){
+async function statsBody(env,k,a,id,ver,dt){
   const b=board(env);let r='';
   const hk0=`<input type="hidden" name="k" value="${esc(k)}">`;
   // 同じなまえの重複の整理：まず消す予定を見せ、「消す」を押したときだけ実行する
@@ -417,13 +433,25 @@ ${analysisHtml(an,ver,hk)}
 <h2>番付の記録（${rows.length}件）</h2>
 <form class="k" method="post" action="/stats" style="margin-bottom:8px">${hk}<input type="hidden" name="a" value="dedup"><button>同じなまえの重複を整理（確認画面へ）</button></form>
 <table>${rk||'<tr><td>まだ記録がありません</td></tr>'}</table>
-<form class="k" method="post" action="/stats">${hk}<input type="hidden" name="a" value="view"><button>最新にする</button></form>`);
+<form class="k" method="post" action="/stats">${hk}<input type="hidden" name="a" value="view"><button>最新にする</button></form>
+<h2>デバッグ</h2>
+<p><small id="dbgst"></small></p>
+<button type="button" id="dbgoff" style="background:#6e6458">この端末のデバッグを止める</button>
+<script>
+// 合言葉で開いたこの端末に、デバッグの札を置く（ゲームはサーバーに札を確かめてからデバッグを使えるようにする）
+(function(){var t=${JSON.stringify(dt)},s=document.getElementById('dbgst'),o=document.getElementById('dbgoff');
+function show(){var on=false;try{on=localStorage.getItem('rokuro_dbg_t')===t;}catch(e){}s.textContent=on?'この端末ではデバッグが使えます（ゲームを開き直すと有効。開始前に左上を5回タップ、または URL の末尾に ?debug）。':'この端末ではデバッグは使えません。';o.style.display=on?'':'none';}
+if(t&&!sessionStorage.getItem('dbgoff')){try{localStorage.setItem('rokuro_dbg_t',t);}catch(e){}}
+o.onclick=function(){try{localStorage.removeItem('rokuro_dbg_t');sessionStorage.setItem('dbgoff','1');}catch(e){}show();};
+show();})();
+</script>`);
 }
 export default {
   async fetch(req,env){
     const p=new URL(req.url).pathname;
     if(p==='/api/rank')return rank(req,env);
     if(p==='/api/play')return play(req,env);
+    if(p==='/api/dbg')return dbgCheck(req,env);
     if(p==='/stats')return stats(req,env);
     return env.ASSETS.fetch(req);
   }
