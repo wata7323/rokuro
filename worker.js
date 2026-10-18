@@ -153,7 +153,9 @@ export class Board extends DurableObject{
     // その番付に入るか。入るなら、入れ替える自分の古い記録の位置（無ければ -1）
     const plan=(l,dir,ok)=>{
       if(!l||!ok)return null;
-      const i=v.dh?l.findIndex(e=>e.dh===v.dh):-1;
+      // 同じ端末の記録。無ければ、端末番号のない古い記録（ver. 1.3.0 より前）で同じなまえのものを同じ人とみなす
+      let i=v.dh?l.findIndex(e=>e.dh===v.dh):-1;
+      if(i<0&&v.u)i=l.findIndex(e=>!e.dh&&e.u===v.u);
       if(i>=0)return (dir>0?v.p>l[i].p:v.p<l[i].p)?{i}:null;
       return (l.length<KEEP||(dir>0?v.p>l[l.length-1].p:v.p<l[l.length-1].p))?{i:-1}:null;
     };
@@ -168,6 +170,23 @@ export class Board extends DurableObject{
     if(pL){add(low,-1,pL);w.low=low;}
     await s.put(w);
     return res(e.id,[pA,pK,pL].some(p=>p&&p.i>=0));
+  }
+  // 同じなまえの重複を整理する（1人1件を入れる前の記録の後始末）。各番付で、なまえごとに一番良い1件だけ残す
+  // 名無しは別の人の集まりなので対象外。go=false なら消さずに、消す予定の一覧だけ返す
+  async dedupeByName(go){
+    const s=this.ctx.storage,lists=[['top','総合',await this.top(),1],['low','逆番付',await this.low(),-1]];
+    for(const [k,l] of Object.entries(await this.kinds()))lists.push(['top:'+k,KIND_WORD[k]+'の部',l,1]);
+    const out=[],w={};
+    for(const [key,label,l,dir] of lists){
+      const best={};
+      for(const e of l){if(!e.u)continue;const b=best[e.u];if(!b||(dir>0?e.p>b.p:e.p<b.p)||(e.p===b.p&&e.t<b.t))best[e.u]=e;}
+      const rm=l.filter(e=>e.u&&best[e.u].id!==e.id);
+      if(!rm.length)continue;
+      for(const e of rm)out.push({label,u:e.u,n:e.n,p:e.p,kn:best[e.u].n,kp:best[e.u].p});
+      w[key]=l.filter(e=>!rm.includes(e));
+    }
+    if(go&&out.length)await s.put(w);
+    return out;
   }
   // 番付の1件を、総合・器種別・逆番付のすべてから消す（集計ページから。登録数はそのまま）
   async remove(id){
@@ -316,7 +335,11 @@ table.an th,table.an td{white-space:nowrap;font-size:12px;padding:5px 5px}`;
 const page=(body)=>new Response(`<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>集計｜10秒暴走ろくろ</title><style>${CSS}</style></head><body>
 <h1>10秒暴走ろくろ 集計</h1>${body}</body></html>`,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-frame-options':'DENY','referrer-policy':'no-referrer'}});
 const MSG={ok:'集計を0に戻しました。',del:'番付から1件消しました。',gone:'その記録はもう番付にありません。',ng:'合言葉が違います。',busy:'少し待ってからもう一度入れてください。',switch:'更新の切り替え中です。1〜2分たってから、もう一度開いてください。',nokey:'合言葉（STATS_KEY）が Cloudflare に登録されていません。'};
-const msgHtml=r=>MSG[r]?`<p class="m${['ok','del'].includes(r)?'':' ng'}">${MSG[r]}</p>`:'';
+MSG.nodup='整理する重複はありませんでした。';
+const msgHtml=r=>{
+  const m=/^dedup:(\d+)$/.exec(r||'');if(m)return `<p class="m">${m[1]}件の重複を整理しました。</p>`;
+  return MSG[r]?`<p class="m${['ok','del','nodup'].includes(r)?'':' ng'}">${MSG[r]}</p>`:'';
+};
 const loginPage=r=>page(`${msgHtml(r)}<form method="post" action="/stats"><input type="password" name="k" placeholder="合言葉" autocomplete="current-password" required autofocus><input type="hidden" name="a" value="view"><button>開く</button></form>`);
 
 async function stats(req,env){
@@ -359,6 +382,19 @@ function analysisHtml(A,ver,hk){
 }
 async function statsBody(env,k,a,id,ver){
   const b=board(env);let r='';
+  const hk0=`<input type="hidden" name="k" value="${esc(k)}">`;
+  // 同じなまえの重複の整理：まず消す予定を見せ、「消す」を押したときだけ実行する
+  if(a==='dedup'){
+    const plan=await b.dedupeByName(false);
+    const rows=plan.map(x=>`<tr><td class="l">${esc(x.label)}<small>${esc(x.u)}「${esc(x.n)}」</small></td><td>${yen(x.p)}</td><td class="l"><small>残す：「${esc(x.kn)}」${yen(x.kp)}</small></td></tr>`).join('');
+    return page(`<h2>同じなまえの重複を整理</h2>
+<p><small>同じなまえは同じ人とみなし、各番付（総合・器種別・逆番付）で なまえごとに一番良い1件だけ残します。名無しは対象外。消した記録は戻せません。</small></p>
+<p><b>${plan.length}件</b>を消します。</p>
+${plan.length?`<form class="k" method="post" action="/stats" onsubmit="return confirm('${plan.length}件を番付から消します。戻せません。よろしいですか？')">${hk0}<input type="hidden" name="a" value="dedup_go"><button style="background:#a12b12">${plan.length}件を消す</button></form>`:''}
+<form class="k" method="post" action="/stats">${hk0}<input type="hidden" name="a" value="view"><button>やめて戻る</button></form>
+<table style="margin-top:16px">${rows||'<tr><td>重複はありません</td></tr>'}</table>`);
+  }
+  if(a==='dedup_go'){const n=(await b.dedupeByName(true)).length;r=n?'dedup:'+n:'nodup';}
   if(a==='reset'){await b.resetStats();r='ok';}
   else if(a==='del'&&/^[0-9a-f]{8}$/.test(id))r=(await b.remove(id))?'del':'gone';
   const st=await b.stats(30),top=await b.top(),low=await b.low(),kinds=await b.kinds(),total=await b.total(),made=await b.made(),mk=await b.madeKinds(),an=await b.analyze(ver);
@@ -379,6 +415,7 @@ async function statsBody(env,k,a,id,ver){
 <form class="k" method="post" action="/stats" onsubmit="return confirm('プレイ回数と人数を0に戻します（番付は消えません）。よろしいですか？')">${hk}<input type="hidden" name="a" value="reset"><button>集計をリセット</button></form>
 ${analysisHtml(an,ver,hk)}
 <h2>番付の記録（${rows.length}件）</h2>
+<form class="k" method="post" action="/stats" style="margin-bottom:8px">${hk}<input type="hidden" name="a" value="dedup"><button>同じなまえの重複を整理（確認画面へ）</button></form>
 <table>${rk||'<tr><td>まだ記録がありません</td></tr>'}</table>
 <form class="k" method="post" action="/stats">${hk}<input type="hidden" name="a" value="view"><button>最新にする</button></form>`);
 }
