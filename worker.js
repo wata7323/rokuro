@@ -1,6 +1,7 @@
 // 10秒暴走ろくろ：番付（ランキング）とプレイ数の API。それ以外のパスは静的ファイル（index.html など）をそのまま返す
 //   GET  /api/rank            → {list:[{id,n,p,r,k,t}…], kinds:{tall:[…],…}, low:[…], total}  総合・器種別（11種）・逆番付と、これまでの登録数
-//   POST /api/rank {n,p,r,k,u} → 中身を検証し、総合か器種別の上位に入れば保存して {pos,kpos,kind,id,list,kinds,total}（u はなまえ：ひらがな6文字まで）
+//   POST /api/rank {n,p,r,k,u,d} → 中身を検証し、総合か器種別の上位に入れば保存して {pos,kpos,kind,id,best,list,kinds,total}（u はなまえ：ひらがな6文字まで）
+//                               d は端末番号。各番付に1端末1件（自己ベストだけ）。より良い記録なら入れ替えて best=true
 //                               器種は銘の末尾（茶碗・大鉢…）から決める。素焼と古い特異点の銘は総合だけ
 //                               逆番付（low：安い順の1本）にも入れてみる。崩壊（鑑定不能・産業廃棄物）は逆番付にだけ載る → {lpos,low}
 //   POST /api/play {f,c,k}    → プレイ回数を1つ数える（f=1 ならその端末の初回＝新しい人、c=1 なら崩れずに完成した品として made も数える、
@@ -77,6 +78,15 @@ function valid(b){
   if(p>=1e4){const e=Math.pow(10,Math.floor(Math.log10(p))-3);if(p%e!==0)return null;}
   return {n,p,r,k,u};
 }
+// 端末の見分け（1人1件のため）。ゲームが送る端末番号 d を、ここで鍵付きのハッシュにして dh として持つ。dh は外へ出さない
+async function devHash(d){
+  if(typeof d!=='string'||!/^[0-9a-f]{16,32}$/.test(d))return '';
+  const h=new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode('rokuro-dev:'+d)));
+  return [...h.slice(0,12)].map(x=>x.toString(16).padStart(2,'0')).join('');
+}
+// 外へ返す番付から dh を外す
+const pub=l=>l.map(({dh,...e})=>e);
+const pubKinds=o=>Object.fromEntries(Object.entries(o).map(([k,l])=>[k,pub(l)]));
 // 日本時間の日付 YYYY-MM-DD
 const jstDay=t=>new Date(t+9*3600e3).toISOString().slice(0,10);
 
@@ -105,27 +115,33 @@ export class Board extends DurableObject{
     return n;
   }
   // 総合・その器種の部・逆番付に入れてみる。どれかに入れば同じ id で保存する。崩壊は逆番付だけ
+  // 1人1件：同じ端末（dh）の記録が既にあれば、それより良いときだけ入れ替える（総合・器種別は高い方、逆番付は安い方が良い）
   async submit(v){
     const s=this.ctx.storage,list=await this.top(),kinds=await this.kinds(),low=await this.low();let total=await this.total();
     const col=!!COLLAPSE[v.r],kind=col?'':nameKind(v.n),kl=kind?kinds[kind]:null;
     const posOf=(l,id)=>{const i=l?l.findIndex(x=>x.id===id):-1;return i>=0?i+1:null;};
-    const res=id=>({pos:posOf(list,id),kpos:posOf(kl,id),lpos:posOf(low,id),kind,id,list,kinds,low,total});
+    const res=(id,best)=>({pos:posOf(list,id),kpos:posOf(kl,id),lpos:posOf(low,id),best:!!best,kind,id,list:pub(list),kinds:pubKinds(kinds),low:pub(low),total});
     // 同じ記録の出し直し（総合・器種別で同じ銘と額があれば）は、載っている順位を返すだけ。逆番付は同じ額の崩壊が多いので比べない
     const same=!col&&(list.find(e=>e.n===v.n&&e.p===v.p)||(kl&&kl.find(e=>e.n===v.n&&e.p===v.p)));
     if(same)return res(same.id);
-    const fitsHi=l=>!(l.length>=KEEP&&v.p<=l[l.length-1].p);
+    // その番付に入るか。入るなら、入れ替える自分の古い記録の位置（無ければ -1）
+    const plan=(l,dir,ok)=>{
+      if(!l||!ok)return null;
+      const i=v.dh?l.findIndex(e=>e.dh===v.dh):-1;
+      if(i>=0)return (dir>0?v.p>l[i].p:v.p<l[i].p)?{i}:null;
+      return (l.length<KEEP||(dir>0?v.p>l[l.length-1].p:v.p<l[l.length-1].p))?{i:-1}:null;
+    };
     // 逆番付は ¥1万未満（等外と崩壊）だけ。件数が少ないうちに高値が紛れ込まないように
-    const fitsLo=l=>v.p<LOW_MAX&&!(l.length>=KEEP&&v.p>=l[l.length-1].p);
-    const inAll=!col&&fitsHi(list),inKind=!!kl&&fitsHi(kl),inLow=fitsLo(low);
-    if(!inAll&&!inKind&&!inLow)return res(null);
+    const pA=plan(list,1,!col),pK=plan(kl,1,true),pL=plan(low,-1,v.p<LOW_MAX);
+    if(!pA&&!pK&&!pL)return res(null);
     const e=Object.assign({id:crypto.randomUUID().slice(0,8),t:Date.now()},v);
-    const add=(l,dir)=>{l.push(e);l.sort((a,b)=>dir*(b.p-a.p)||a.t-b.t);l.length=Math.min(l.length,KEEP);};
+    const add=(l,dir,pl)=>{if(pl.i>=0)l.splice(pl.i,1);l.push(e);l.sort((a,b)=>dir*(b.p-a.p)||a.t-b.t);l.length=Math.min(l.length,KEEP);};
     const w={regs:++total};
-    if(inAll){add(list,1);w.top=list;}
-    if(inKind){add(kl,1);w['top:'+kind]=kl;}
-    if(inLow){add(low,-1);w.low=low;}
+    if(pA){add(list,1,pA);w.top=list;}
+    if(pK){add(kl,1,pK);w['top:'+kind]=kl;}
+    if(pL){add(low,-1,pL);w.low=low;}
     await s.put(w);
-    return res(e.id);
+    return res(e.id,[pA,pK,pL].some(p=>p&&p.i>=0));
   }
   // 番付の1件を、総合・器種別・逆番付のすべてから消す（集計ページから。登録数はそのまま）
   async remove(id){
@@ -193,9 +209,9 @@ async function busy(req,tag,sec){if(await rateHas(req,tag))return true;await rat
 async function rank(req,env){
   // 総合はいつでも返す。器種別・逆番付・登録数で失敗しても総合は見られるようにし、失敗は err に短く入れる
   if(req.method==='GET'){
-    const b=board(env),o={list:await b.top()},err=[];
-    try{o.kinds=await b.kinds();}catch(e){err.push('kinds: '+errText(e));}
-    try{o.low=await b.low();}catch(e){err.push('low: '+errText(e));}
+    const b=board(env),o={list:pub(await b.top())},err=[];
+    try{o.kinds=pubKinds(await b.kinds());}catch(e){err.push('kinds: '+errText(e));}
+    try{o.low=pub(await b.low());}catch(e){err.push('low: '+errText(e));}
     try{o.total=await b.total();o.made=await b.made();o.madeKinds=await b.madeKinds();}catch(e){err.push('total: '+errText(e));}
     if(err.length)o.err=err;
     return json(o);
@@ -204,6 +220,7 @@ async function rank(req,env){
   if(await busy(req,'rank',10))return json({error:'busy'},429);
   let b;try{b=await req.json();}catch(e){return json({error:'bad'},400);}
   const v=valid(b);if(!v)return json({error:'invalid'},400);
+  const dh=await devHash(b.d);if(dh)v.dh=dh;
   try{return json(await board(env).submit(v));}catch(e){return json({error:'server',err:errText(e)},500);}
 }
 async function play(req,env){
