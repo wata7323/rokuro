@@ -255,7 +255,7 @@ body.sing{--shippo:none;--paper:#121110;--ink:#f1ece4;--sub:#a49b8f;--line:rgba(
   <!-- 版（セマンティック バージョニング 主.副.修正）：変更するたびに上げる。
        修正・小さな調整 → 3つ目（1.0.0→1.0.1）／新しい機能 → 2つ目（1.0.1→1.1.0）／遊び方が大きく変わる → 1つ目（1.1.0→2.0.0）
        アップロード後、スマホに新しい版が届いたかをここで確かめる -->
-  <div id="hver">作者 わたわたするわた<i></i>ver. 1.2.0</div>
+  <div id="hver">作者 わたわたするわた<i></i>ver. 1.2.2</div>
 </div>
 <div id="toast"></div>
 <script>
@@ -1590,7 +1590,9 @@ function fire(){
     lh:s.lh,rpm:s.rpm,rpmMax:Math.max(s.rpmMax,s.rpm),collapsed:s.collapsed,singular:s.singular,reason:s.collapseReason,q:s.q,chaos:s.chaos,theta:s.theta,
     peakPrice:s.peakPrice,collapseTime:s.collapseTime,collapseRpm:s.collapseRpm};
   sfx.explosion();
-  playCount();
+  // 完成なら器種も添える（鑑定書の銘と同じ決め方：形がはっきりしない素焼は器種なし）
+  const done=!(s.final.collapsed&&!s.final.singular),sh=done?shapeEval(metrics(s.final)):null;
+  playCount(done,sh&&sh.score>=0.2?sh.top[0].d.k:'');
   shojiClose(false);shojiEl.classList.add('glow');
   s.shake=20;
   pointers.clear();
@@ -2489,7 +2491,7 @@ function zClose(){$('zukan').style.display='none';}
 /* 番付（ランキング）：サーバーの /api/rank に、なまえ（ひらがな6文字まで）・銘・鑑定額・格付・プレビューの種類だけを送る
    総合・器種別（11種）・逆番付（安い順）の3つ。崩壊は逆番付にだけ載る。開発用の自動操作やデバッグを使った回は送らない */
 const RANK_API='/api/rank',RANK_SHOW=10;
-let rankList=null,rankKinds=null,rankLow=null,rankTotal=null,bView='';   // rankTotal：これまでに番付へ登録された品数   // rankKinds：器種ごとの番付 {tall:[…],…}。rankLow：逆番付（安い順）。bView：''=総合、'low'=逆番付、それ以外は器種
+let rankList=null,rankKinds=null,rankLow=null,rankMade=null,rankMadeK=null,bView='';   // rankMade：これまでに完成した品数（番付に載らなかった分も含む）。rankMadeK：その器種別   // rankKinds：器種ごとの番付 {tall:[…],…}。rankLow：逆番付（安い順）。bView：''=総合、'low'=逆番付、それ以外は器種
 // 銘の末尾の器種から、器種別の番付の部を決める（worker.js の nameKind と同じ）。素焼・古い特異点の銘は総合だけ
 const KIND_WORDS=Object.entries(ZKIND).concat([['bulge','水注']]).sort((a,b)=>b[1].length-a[1].length);
 function nameKind(n){if(/素焼/.test(n))return '';const w=KIND_WORDS.find(([,w])=>n.endsWith(w));return w?w[0]:'';}
@@ -2514,7 +2516,8 @@ function rankTake(j){
   if(Array.isArray(j.list))rankList=j.list;
   if(j.kinds&&typeof j.kinds==='object')rankKinds=j.kinds;
   if(Array.isArray(j.low))rankLow=j.low;
-  if(typeof j.total==='number')rankTotal=j.total;
+  if(typeof j.made==='number')rankMade=j.made;
+  if(j.madeKinds&&typeof j.madeKinds==='object')rankMadeK=j.madeKinds;
 }
 // 番付に入る記録が出たら、載せる前に名前をたずねる（前回の名前を入れておく）
 let rankPending=null;
@@ -2573,7 +2576,9 @@ const btabs=$('btabs');
 function bRender(){
   const ol=$('blist');ol.innerHTML='';
   btabs.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.k===bView));
-  $('bcount').textContent=rankTotal!==null?'登録 '+rankTotal.toLocaleString('ja-JP')+'品':'';
+  // 見出しの横の品数：器種の部を見ているときは、その器種の完成数
+  const mc=bView&&bView!=='low'?(rankMadeK?rankMadeK[bView]:null):rankMade;
+  $('bcount').textContent=typeof mc==='number'?'完成 '+mc.toLocaleString('ja-JP')+'品':'';
   $('bsub').textContent=bView==='low'?'これまでの鑑定額 下位10':(bView?ZKIND[bView]+'の部 上位10':'これまでの鑑定額 上位10');
   const list=bView==='low'?rankLow:(bView?(rankKinds?(rankKinds[bView]||[]):null):rankList);
   if(!list){const li=document.createElement('li');li.className='bx';li.textContent=rankOn()?'番付を読み込めませんでした':'公開ページでのみ表示されます';ol.appendChild(li);return;}
@@ -2589,11 +2594,11 @@ function bRender(){
     ol.appendChild(li);
   });
 }
-// プレイ数：焼成のたびに1回。この端末で初めてなら「新しい人」として数える（中身は回数だけ）
-function playCount(){
+// プレイ数：焼成のたびに1回。この端末で初めてなら「新しい人」として数える。崩れずに焼き上がった回は「完成」としても数える（中身は回数だけ）
+function playCount(done,kind){
   if(!rankOn()||DBG.used)return;
   let first=false;try{first=!localStorage.getItem('rokuro_played');localStorage.setItem('rokuro_played','1');}catch(e){}
-  fetch('/api/play',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({f:first?1:0}),keepalive:true}).catch(()=>{});
+  fetch('/api/play',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({f:first?1:0,c:done?1:0,k:kind||''}),keepalive:true}).catch(()=>{});
 }
 // なまえ欄：決めると端末に覚え、次から番付に送る記録に付く（すでに載った記録は変わらない）
 $('bname').addEventListener('submit',e=>{
