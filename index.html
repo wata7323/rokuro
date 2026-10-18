@@ -118,8 +118,11 @@ body.sing{--shippo:none;--paper:#121110;--ink:#f1ece4;--sub:#a49b8f;--line:rgba(
 #howto p{margin:0;font-family:var(--mincho);font-size:16px;font-weight:800;letter-spacing:.06em;line-height:1.5}
 #howto p small{display:block;font-size:12px;font-weight:600;color:#6e6458;letter-spacing:.04em}
 #howto .hgo{font-size:12px;color:#6e6458;letter-spacing:.2em;margin-top:6px}
-#hver{position:absolute;right:14px;bottom:calc(env(safe-area-inset-bottom,0px) + 10px);font-family:var(--mincho);font-size:10px;color:#8a7f72;letter-spacing:.06em;font-variant-numeric:tabular-nums;display:flex;align-items:center}
+#hver{position:absolute;right:14px;bottom:calc(env(safe-area-inset-bottom,0px) + 10px);font-family:var(--mincho);font-size:10px;color:#8a7f72;letter-spacing:.06em;font-variant-numeric:tabular-nums;display:flex;flex-direction:column;align-items:flex-start}
+#hver .hv1{display:flex;align-items:center}
 #hver i{width:1px;height:10px;background:rgba(27,24,20,.2);margin:0 8px}
+/* 作者の X：不具合の報告や更新の知らせ用。押しやすいよう上下に余白をとる */
+#hx{color:#6e6458;font-size:11px;letter-spacing:.04em;text-decoration:underline;text-decoration-color:rgba(27,24,20,.3);text-underline-offset:2px;padding:6px 0 2px;cursor:pointer}
 #zbtn i,#zbtn2 i{position:absolute;right:8px;top:8px;width:8px;height:8px;background:var(--shu);display:none}
 #zbtn.new i,#zbtn2.new i{display:block}
 #zbtn2{position:relative;background:#4a3d30;color:#f6f1e7;border:0}
@@ -255,7 +258,7 @@ body.sing{--shippo:none;--paper:#121110;--ink:#f1ece4;--sub:#a49b8f;--line:rgba(
   <!-- 版（セマンティック バージョニング 主.副.修正）：変更するたびに上げる。
        修正・小さな調整 → 3つ目（1.0.0→1.0.1）／新しい機能 → 2つ目（1.0.1→1.1.0）／遊び方が大きく変わる → 1つ目（1.1.0→2.0.0）
        アップロード後、スマホに新しい版が届いたかをここで確かめる -->
-  <div id="hver">作者 わたわたするわた<i></i>ver. 1.4.0</div>
+  <div id="hver"><div class="hv1">作者 わたわたするわた<i></i>ver. 1.5.1</div><a id="hx" href="https://x.com/watawatasuruwat" target="_blank" rel="noopener">X:@watawatasuruwat</a></div>
 </div>
 <div id="toast"></div>
 <script>
@@ -1471,7 +1474,11 @@ function singRank(v){return SING_RANKS.find(r=>v>=r[0])[1];}
 // 崩れた器の処分用途：0=土壌へ還付 1=漬物石 2=灰皿
 function scrapUse(m){return m.Htot<65?2:(m.hollowFrac<0.2?1:0);}
 // 崩れた器の値段。ふつうは¥4前後。高値まで育ってから崩れると破片に値が残る（用途・崩れた瞬間の回転でも少し動く。乱数なし）
+// 転落（¥1）：¥1億以上まで育ててから、焼成の直前に崩す（焼成時に高さ65mm以上が残る＝崩れてすぐ焼かれた）。
+// 崩れた瞬間の回転の端数が ¥2 と同じ当たり（97で割った余りが20以下）のときだけ。ほかの崩壊の値段は変えない
+function scrapFall(s,m){return scrapUse(m)!==2&&(s.peakPrice||0)>=1e8&&((s.collapseRpm||0)%97)<=20;}
 function scrapPrice(s,m){
+  if(scrapFall(s,m))return 1;
   const u=scrapUse(m);
   const k=clamp((Math.log10(Math.max(s.peakPrice||1,1))-4)/5,0,1);
   const w=((s.collapseRpm||0)%97)/96;
@@ -1905,7 +1912,7 @@ function appraise(f,m){
     const high=f.collapseRpm>=15000;
     name=high?'器体破片（飛散）':'未成形土塊';
     disposal=['土壌へ還付','漬物石として登録','灰皿として登録'][scrapUse(m)];
-    comment=f.peakPrice>=100000?'高回転域にて遠心力に耐えず損壊。惜しまれる。':'回転以前の問題である。';
+    comment=f.price===1?'国宝級の器が焼成の寸前に崩落。破片に値はつかない。':(f.peakPrice>=100000?'高回転域にて遠心力に耐えず損壊。惜しまれる。':'回転以前の問題である。');
     rank=high?'鑑定不能':'産業廃棄物';
     sub='（'+disposal+'）';
   }else{
@@ -2319,7 +2326,7 @@ function changeStr(exp,act){
 function shareText(){
   const f=S.final,i=cardInfo,exp=f.peakPrice||f.price,r=f.price/Math.max(1,exp);
   // 見出し：崩壊・暴落・特異点は見出しで先に伝える
-  const head=f.singular?'【暴走結果・特異点】':(f.collapsed?'【暴走結果・崩壊】':(r<=0.5?'【暴走結果・暴落】':'【暴走結果】'));
+  const head=f.singular?'【暴走結果・特異点】':(f.collapsed?(f.price===1?'【暴走結果・転落】':'【暴走結果・崩壊】'):(r<=0.5?'【暴走結果・暴落】':'【暴走結果】'));
   const L=[head,'「'+i.name+'」','予想鑑定額 ¥'+fmt(exp),'実際の鑑定額 ¥'+fmt(f.price)+'（'+changeStr(exp,f.price)+'）'];
   if(f.collapsed&&!f.singular&&i.disposal)L.push('処分：'+i.disposal);
   return L.join('\n')+'\n\n#10秒暴走ろくろ';
@@ -2686,6 +2693,8 @@ const HKEY='rokuro_howto_v1';
 function hOpen(first){$('hgo').textContent=first?'触れて始める':'触れて閉じる';$('howto').style.display='flex';}
 function hClose(){$('howto').style.display='none';try{localStorage.setItem(HKEY,'1');}catch(e){}}
 $('howto').addEventListener('pointerdown',e=>{e.stopPropagation();e.preventDefault();hClose();});
+// 作者の X へのリンクは、押しても遊び方を閉じずにそのまま開く
+$('hx').addEventListener('pointerdown',e=>{e.stopPropagation();});
 $('hbtn').addEventListener('pointerdown',e=>{e.stopPropagation();});
 $('hbtn').addEventListener('click',()=>{if(S.phase==='play'&&!S.started)hOpen(false);});
 {let seen=false;try{seen=!!localStorage.getItem(HKEY);}catch(e){seen=true;}if(!seen)hOpen(true);}
