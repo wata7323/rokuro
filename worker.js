@@ -4,8 +4,9 @@
 //                               d は端末番号。各番付に1端末1件（自己ベストだけ）。より良い記録なら入れ替えて best=true
 //                               器種は銘の末尾（茶碗・大鉢…）から決める。素焼と古い特異点の銘は総合だけ
 //                               逆番付（low：安い順の1本）にも入れてみる。崩壊（鑑定不能・産業廃棄物）は逆番付にだけ載る → {lpos,low}
-//   POST /api/play {f,c,k}    → プレイ回数を1つ数える（f=1 ならその端末の初回＝新しい人、c=1 なら崩れずに完成した品として made も数える、
+//   POST /api/play {f,c,k,e,v,l} → プレイ回数を1つ数える（f=1 ならその端末の初回＝新しい人、c=1 なら崩れずに完成した品として made も数える、
 //                               k は完成品の器種で made:<器種> も数える）。made と器種別（madeKinds）は番付の見出しに出す。集計のリセットでは消さない
+//                               e はプレイごとの番号（同じ e の送り直しは数えない）。v は版、l は調整用の記録（形・額・崩壊など）で plays_log に1行残す
 //   GET  /stats               → 合言葉の入力欄だけ
 //   POST /stats {k,a,id}      → 合言葉が合えば、集計（日本時間の日ごと）と番付の全件を見せる。a=reset で集計を0に、a=del で番付の1件を消す
 //                               合言葉は Cloudflare の Secret「STATS_KEY」に登録する（コードには書かない）
@@ -90,8 +91,33 @@ const pubKinds=o=>Object.fromEntries(Object.entries(o).map(([k,l])=>[k,pub(l)]))
 // 日本時間の日付 YYYY-MM-DD
 const jstDay=t=>new Date(t+9*3600e3).toISOString().slice(0,10);
 
+// ---- 調整用のプレイ記録（1プレイ1行。名前・端末番号・IP は残さない） ----
+const LOG_KEEP=200000;   // 新しい20万件だけ残す
+const LOG_COLS=['eid','t','ver','first','res','reason','ctime','k1','v1','k2','v2','k3','v3','score','q','price','peak','rank','glaze','rpm','zone','pre'];
+const SHAPES=['tall','wide','thin','waist','flare','closed','bulge','flat','slender','ridge','twist'];
+const REASONS=['首折れ','遠心力で飛散','高さの限界','軸ブレ崩壊'];
+const GLAZES=['yohen','yuteki','seiji','ruri','shinsha','oribe','shino','kohiki','tsuchi','kiseto','koge','sing'];
+// ゲームから届いた記録を、決まった語と範囲の数だけに整える（自由な文字は残さない）
+function cleanLog(L,ver){
+  if(!L||typeof L!=='object')return null;
+  const num=(x,lo,hi,d)=>typeof x==='number'&&isFinite(x)?+Math.min(hi,Math.max(lo,x)).toFixed(d):null;
+  const pick=(x,list)=>list.includes(x)?x:null;
+  const top=Array.isArray(L.top)?L.top.slice(0,3):[];
+  const k=i=>(top[i]&&pick(top[i][0],SHAPES))||null,v=i=>k(i)?num(top[i][1],-9,9,3):null;
+  return {ver:typeof ver==='string'&&/^\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(ver)?ver:null,
+    res:pick(L.res,['n','s','c']),reason:pick(L.reason,REASONS),ctime:num(L.ctime,0,15,2),
+    k1:k(0),v1:v(0),k2:k(1),v2:v(1),k3:k(2),v3:v(2),score:num(L.score,0,1,3),q:num(L.q,0,1,3),
+    price:num(L.price,0,1e12,0),peak:num(L.peak,0,1e12,0),rank:typeof L.rank==='string'&&(RANKS[L.rank]||L.rank==='泥塊')?L.rank:null,
+    glaze:pick(L.glaze,GLAZES),rpm:num(L.rpm,0,100000,0),zone:num(L.zone,0,15,2),pre:pick(L.pre,SHAPES)};
+}
+
 // 番付とプレイ数を持つ Durable Object（1つだけ使う）。中の処理は1件ずつ順番に動くので、同時に書いても壊れない
 export class Board extends DurableObject{
+  constructor(ctx,env){
+    super(ctx,env);
+    ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS plays_log(eid TEXT PRIMARY KEY,t INTEGER,ver TEXT,first INTEGER,res TEXT,reason TEXT,ctime REAL,
+      k1 TEXT,v1 REAL,k2 TEXT,v2 REAL,k3 TEXT,v3 REAL,score REAL,q REAL,price INTEGER,peak INTEGER,rank TEXT,glaze TEXT,rpm INTEGER,zone REAL,pre TEXT)`);
+  }
   async top(){return (await this.ctx.storage.get('top'))||[];}
   async low(){return (await this.ctx.storage.get('low'))||[];}
   // 器種別の番付。まだ無ければ、総合に載っている記録から作る（器種別を足す前の記録も入るように）
@@ -171,8 +197,14 @@ export class Board extends DurableObject{
     }
     return o;
   }
-  async play(first,done,kind){
+  // 1プレイを数える。eid（プレイごとの番号）があれば記録を1行残し、同じ eid の送り直しは数えない（二重に数えない）
+  async play(first,done,kind,eid,log){
     const d=jstDay(Date.now()),s=this.ctx.storage;
+    if(eid){
+      const L=log||{},row=[eid,Date.now(),L.ver,first?1:0,L.res,L.reason,L.ctime,L.k1,L.v1,L.k2,L.v2,L.k3,L.v3,L.score,L.q,L.price,L.peak,L.rank,L.glaze,L.rpm,L.zone,L.pre].map(x=>x===undefined?null:x);
+      const c=s.sql.exec(`INSERT OR IGNORE INTO plays_log(${LOG_COLS.join(',')}) VALUES(${LOG_COLS.map(()=>'?').join(',')})`,...row);
+      c.toArray();if(!c.rowsWritten)return {ok:true,dup:true};
+    }
     const k=['plays','plays:'+d].concat(first?['players','players:'+d]:[]);
     const cur=await s.get(k),o={};
     for(const x of k)o[x]=(cur.get(x)||0)+1;
@@ -181,6 +213,34 @@ export class Board extends DurableObject{
       if(KIND_PARTS.includes(kind))o['made:'+kind]=(await this.madeKinds())[kind]+1;
     }
     await s.put(o);
+    // 記録が増えすぎないように、500回に1回、古い分を消す
+    if(eid&&o.plays%500===0)s.sql.exec(`DELETE FROM plays_log WHERE rowid<=(SELECT MAX(rowid) FROM plays_log)-?`,LOG_KEEP);
+    return {ok:true};
+  }
+  // 調整用の分析（直近2万件。ver を渡すとその版だけ）。読み出しは1回あたり最大2万行
+  analyze(ver){
+    const all=this.ctx.storage.sql.exec(`SELECT ver,res,reason,k1,score,price,rank,pre,zone FROM plays_log ORDER BY rowid DESC LIMIT 20000`).toArray();
+    const vc={};for(const r of all){const v=r.ver||'?';vc[v]=(vc[v]||0)+1;}
+    const rows=ver?all.filter(r=>(r.ver||'?')===ver):all;
+    const done=rows.filter(r=>r.res==='n'||r.res==='s'),col=rows.filter(r=>r.res==='c');
+    const hi=r=>r.res==='s'||r.rank==='人間国宝';
+    const q=(a,p)=>a.length?a[Math.min(a.length-1,Math.floor(a.length*p))]:0;
+    const kinds=SHAPES.map(k=>{
+      const d=done.filter(r=>r.k1===k),c=col.filter(r=>r.pre===k),ps=d.map(r=>r.price||0).sort((x,y)=>x-y);
+      const why={};for(const r of c)if(r.reason)why[r.reason]=(why[r.reason]||0)+1;
+      return {k,done:d.length,col:c.length,med:q(ps,0.5),p90:q(ps,0.9),max:ps.length?ps[ps.length-1]:0,
+        hi:d.filter(hi).length,sing:d.filter(r=>r.res==='s').length,neat:d.filter(r=>(r.score||0)>=0.45).length,why};
+    });
+    const whyAll={};for(const r of col)if(r.reason)whyAll[r.reason]=(whyAll[r.reason]||0)+1;
+    return {vers:Object.entries(vc).sort((a,b)=>b[0].localeCompare(a[0],undefined,{numeric:true})),n:rows.length,done:done.length,col:col.length,
+      sing:done.filter(r=>r.res==='s').length,hi:done.filter(hi).length,whyAll,kinds};
+  }
+  // CSV（新しい順に最大5万件。それ以上は古い分を省く）
+  csv(){
+    const rows=this.ctx.storage.sql.exec(`SELECT ${LOG_COLS.slice(1).join(',')} FROM plays_log ORDER BY rowid DESC LIMIT 50000`).toArray();
+    const cell=x=>x===null||x===undefined?'':(typeof x==='string'&&/[",\n]/.test(x)?'"'+x.replace(/"/g,'""')+'"':String(x));
+    const head=LOG_COLS.slice(1);
+    return [head.join(',')].concat(rows.map(r=>head.map(h=>h==='t'?cell(new Date(r.t+9*3600e3).toISOString().slice(0,19).replace('T',' ')):cell(r[h])).join(','))).join('\r\n');
   }
   async stats(days){
     const s=this.ctx.storage,now=Date.now(),ks=['plays','players'],rows=[];
@@ -228,8 +288,11 @@ async function play(req,env){
   // 1回のプレイは10秒以上かかるので、それより短い間隔の連打は数えない
   if(await busy(req,'play',8))return json({ok:false},429);
   let b={};try{b=await req.json();}catch(e){}
-  await board(env).play(b&&b.f===1,b&&b.c===1,b&&typeof b.k==='string'?b.k:'');
-  return json({ok:true});
+  b=b&&typeof b==='object'?b:{};
+  // e はプレイごとの番号（送り直しで二重に数えないため）、l は調整用の記録、v はゲームの版
+  const eid=typeof b.e==='string'&&/^[0-9a-f]{16,32}$/.test(b.e)?b.e:'';
+  try{return json(await board(env).play(b.f===1,b.c===1,typeof b.k==='string'?b.k:'',eid,eid?cleanLog(b.l,b.v):null));}
+  catch(e){return json({error:'server',err:errText(e)},500);}
 }
 
 // ---- 集計ページ（合言葉が要る） ----
@@ -248,7 +311,8 @@ const CSS=`body{margin:0;padding:16px;background:#ebe5d9;color:#1b1814;font-fami
 td,th{border-bottom:1px solid rgba(27,24,20,.16);padding:6px 4px;text-align:right;vertical-align:middle}td:first-child,th:first-child{text-align:left}small{color:#6e6458}
 .m{margin:0 0 12px;color:#1b1814}.m.ng{color:#c8371a}td.l{text-align:left}td small{display:block}
 form{display:flex;gap:8px;max-width:480px;margin:0}form.k{margin-top:8px}form input{flex:1;min-width:0;font:inherit;padding:8px;border:1px solid rgba(27,24,20,.3);background:#f6f1e7;border-radius:0}
-button{font:inherit;font-weight:700;padding:8px 14px;border:0;background:#1b1814;color:#f6f1e7;border-radius:0;cursor:pointer}td button{padding:4px 10px;font-size:13px;background:#a12b12}`;
+button{font:inherit;font-weight:700;padding:8px 14px;border:0;background:#1b1814;color:#f6f1e7;border-radius:0;cursor:pointer}td button{padding:4px 10px;font-size:13px;background:#a12b12}
+table.an th,table.an td{white-space:nowrap;font-size:12px;padding:5px 5px}`;
 const page=(body)=>new Response(`<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>集計｜10秒暴走ろくろ</title><style>${CSS}</style></head><body>
 <h1>10秒暴走ろくろ 集計</h1>${body}</body></html>`,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-frame-options':'DENY','referrer-policy':'no-referrer'}});
 const MSG={ok:'集計を0に戻しました。',del:'番付から1件消しました。',gone:'その記録はもう番付にありません。',ng:'合言葉が違います。',busy:'少し待ってからもう一度入れてください。',switch:'更新の切り替え中です。1〜2分たってから、もう一度開いてください。',nokey:'合言葉（STATS_KEY）が Cloudflare に登録されていません。'};
@@ -260,18 +324,44 @@ async function stats(req,env){
   if(req.method!=='POST')return json({error:'method'},405);
   let f=null;try{f=await req.formData();}catch(e){}
   const k=String(f&&f.get('k')||''),a=String(f&&f.get('a')||'view'),id=String(f&&f.get('id')||'');
+  const ver=/^(\d{1,3}\.\d{1,3}\.\d{1,3}|\?)$/.test(String(f&&f.get('ver')||''))?String(f.get('ver')):'';
   if(!env.STATS_KEY)return loginPage('nokey');
   // 合言葉の総当たりを防ぐ：間違えたら、同じ端末からは5秒待たないと次を試せない（合っている人の操作は止めない）
   if(await rateHas(req,'statsng'))return loginPage('busy');
   if(!(await keyOk(k,env))){await rateMark(req,'statsng',5);return loginPage('ng');}
   // 公開し直した直後の数分は、保存先（Durable Object）だけ古い版のまま動くことがある。そのときは止まらずに知らせる
-  try{return await statsBody(env,k,a,id);}catch(e){return loginPage('switch');}
+  if(a==='csv'){
+    try{return new Response('﻿'+await board(env).csv(),{headers:{'content-type':'text/csv; charset=utf-8','content-disposition':'attachment; filename="rokuro_plays.csv"','cache-control':'no-store'}});}
+    catch(e){return loginPage('switch');}
+  }
+  try{return await statsBody(env,k,a,id,ver);}catch(e){return loginPage('switch');}
 }
-async function statsBody(env,k,a,id){
+// 額を短く（1.2億・340万・980）
+const short=p=>p>=1e8?(p/1e8).toFixed(p>=1e9?0:1)+'億':(p>=1e4?Math.round(p/1e4).toLocaleString()+'万':String(Math.round(p)));
+const pct=(a,b)=>b?Math.round(a/b*100)+'%':'-';
+// 分析の欄：器種別の完成と額、作ろうとして崩れた割合
+function analysisHtml(A,ver,hk){
+  const opt=['<option value="">すべての版</option>'].concat(A.vers.map(([v,c])=>`<option value="${esc(v)}"${v===ver?' selected':''}>ver. ${esc(v)}（${c}回）</option>`)).join('');
+  const kt=A.kinds.map(x=>`<tr><td>${KIND_WORD[x.k]}</td><td>${x.done}</td><td>${short(x.med)}</td><td>${short(x.p90)}</td><td>${short(x.max)}</td><td>${pct(x.hi,x.done)}</td><td>${pct(x.sing,x.done)}</td><td>${pct(x.neat,x.done)}</td></tr>`).join('');
+  const ct=A.kinds.map(x=>{const t=x.done+x.col;const w=Object.entries(x.why).sort((a,b)=>b[1]-a[1]).map(([r,n])=>r+' '+n).join('・');
+    return `<tr><td>${KIND_WORD[x.k]}</td><td>${t}</td><td>${x.col}</td><td>${pct(x.col,t)}</td><td class="l"><small>${esc(w)}</small></td></tr>`;}).join('');
+  const wa=Object.entries(A.whyAll).sort((a,b)=>b[1]-a[1]).map(([r,n])=>r+' '+n).join('・');
+  return `<h2>分析（直近${A.n.toLocaleString()}回）</h2>
+<form class="k" method="post" action="/stats">${hk}<input type="hidden" name="a" value="view"><select name="ver" style="flex:1;font:inherit;padding:8px;background:#f6f1e7;border:1px solid rgba(27,24,20,.3);border-radius:0">${opt}</select><button>絞り込む</button></form>
+<p><small>完成 ${A.done}（特異点 ${A.sing}・人間国宝以上 ${A.hi}）／崩壊 ${A.col}（${pct(A.col,A.n)}）${wa?'：'+esc(wa):''}</small></p>
+<h3 style="font-size:14px;margin:16px 0 4px">器種別の完成</h3>
+<div style="overflow-x:auto"><table class="an"><tr><th>器種</th><th>完成</th><th>中央値</th><th>上位10%</th><th>最高</th><th>国宝以上</th><th>特異点</th><th>整った</th></tr>${kt}</table></div>
+<p><small>器種は形の1番目の指標。「整った」は形の点数0.45以上（図鑑に入る形）。国宝以上は人間国宝か特異点。</small></p>
+<h3 style="font-size:14px;margin:16px 0 4px">作ろうとして崩れた割合</h3>
+<div style="overflow-x:auto"><table class="an"><tr><th>器種</th><th>回数</th><th>崩壊</th><th>崩壊率</th><th>理由</th></tr>${ct}</table></div>
+<p><small>崩壊は、崩れる直前の形の1番目で数える。回数＝その器種の完成＋崩壊。</small></p>
+<form class="k" method="post" action="/stats">${hk}<input type="hidden" name="a" value="csv"><button>記録を CSV で保存（直近5万件）</button></form>`;
+}
+async function statsBody(env,k,a,id,ver){
   const b=board(env);let r='';
   if(a==='reset'){await b.resetStats();r='ok';}
   else if(a==='del'&&/^[0-9a-f]{8}$/.test(id))r=(await b.remove(id))?'del':'gone';
-  const st=await b.stats(30),top=await b.top(),low=await b.low(),kinds=await b.kinds(),total=await b.total(),made=await b.made(),mk=await b.madeKinds();
+  const st=await b.stats(30),top=await b.top(),low=await b.low(),kinds=await b.kinds(),total=await b.total(),made=await b.made(),mk=await b.madeKinds(),an=await b.analyze(ver);
   // 番付は総合・器種別・逆番付をまとめて1件ずつ並べ、どこに載っているかを添える
   const seen=new Map();
   const put=(l,tag)=>l.forEach(e=>{const x=seen.get(e.id)||{e,tags:[]};x.tags.push(tag);seen.set(e.id,x);});
@@ -287,6 +377,7 @@ async function statsBody(env,k,a,id){
 <table><tr><th>日付（日本時間）</th><th>回数</th><th>新しい人</th></tr>${tr}</table>
 <p><small>人数は「その端末で初めて遊んだ回」を数えたもの。ブラウザの記録を消すと、同じ人でも新しい人として数え直されます。</small></p>
 <form class="k" method="post" action="/stats" onsubmit="return confirm('プレイ回数と人数を0に戻します（番付は消えません）。よろしいですか？')">${hk}<input type="hidden" name="a" value="reset"><button>集計をリセット</button></form>
+${analysisHtml(an,ver,hk)}
 <h2>番付の記録（${rows.length}件）</h2>
 <table>${rk||'<tr><td>まだ記録がありません</td></tr>'}</table>
 <form class="k" method="post" action="/stats">${hk}<input type="hidden" name="a" value="view"><button>最新にする</button></form>`);
