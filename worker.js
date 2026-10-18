@@ -3,6 +3,7 @@
 //   POST /api/rank {n,p,r,k,u} → 中身を検証し、上位に入れば保存して {pos,id,list}（u はなまえ：ひらがな6文字まで）
 //   POST /api/play {f}        → プレイ回数を1つ数える（f=1 ならその端末の初回＝新しい人）
 //   GET  /stats               → プレイ回数・人数の集計（日本時間の日ごと）
+//   POST /stats/reset {k}     → 合言葉が合えば集計を0に戻す（番付は消さない）。合言葉は Cloudflare の Secret「STATS_KEY」に登録する（コードには書かない）
 // 保存先は Durable Object（SQLite、無料プランで使える）1つ。KV のような事前の作成や ID の設定は要らない
 // 自由な文字は受け取らない。なまえはひらがな6文字まで、銘はゲームの語彙の組み合わせだけを通す
 import {DurableObject} from 'cloudflare:workers';
@@ -84,6 +85,13 @@ export class Board extends DurableObject{
     return {plays:m.get('plays')||0,players:m.get('players')||0,
       days:rows.map(d=>({d,plays:m.get('plays:'+d)||0,players:m.get('players:'+d)||0}))};
   }
+  // 集計（plays… と players… で始まる値）を全部消す。番付（top）は残す
+  async resetStats(){
+    const s=this.ctx.storage,ks=[];
+    for(const p of ['plays','players'])ks.push(...(await s.list({prefix:p})).keys());
+    for(let i=0;i<ks.length;i+=128)await s.delete(ks.slice(i,i+128));
+    return ks.length;
+  }
 }
 const board=env=>env.BOARD.get(env.BOARD.idFromName('main'));
 
@@ -111,17 +119,44 @@ async function play(req,env){
   await board(env).play(b&&b.f===1);
   return json({ok:true});
 }
-async function statsPage(env){
+// 合言葉の照合（長さや一致した文字数で時間が変わらないように比べる）
+async function keyOk(given,env){
+  const want=env.STATS_KEY;
+  if(typeof want!=='string'||!want||typeof given!=='string')return false;
+  const h=async t=>new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t)));
+  const a=await h(given),b=await h(want);
+  return crypto.subtle.timingSafeEqual(a,b);
+}
+async function statsReset(req,env){
+  if(req.method!=='POST')return json({error:'method'},405);
+  // 合言葉の総当たりを防ぐ：同じ端末からは5秒に1回まで
+  const go=r=>Response.redirect(new URL('/stats?r='+r,req.url).toString(),303);
+  if(await busy(req,'reset',5))return go('busy');
+  let k='';try{k=String((await req.formData()).get('k')||'');}catch(e){}
+  if(!env.STATS_KEY)return go('nokey');
+  if(!(await keyOk(k,env)))return go('ng');
+  await board(env).resetStats();
+  return go('ok');
+}
+async function statsPage(req,env){
   const st=await board(env).stats(30);
+  const r=new URL(req.url).searchParams.get('r');
+  const MSG={ok:'集計を0に戻しました。',ng:'合言葉が違います。',busy:'少し待ってからもう一度押してください。',nokey:'合言葉（STATS_KEY）が Cloudflare に登録されていません。'};
+  const msg=MSG[r]?`<p class="m${r==='ok'?'':' ng'}">${MSG[r]}</p>`:'';
   const tr=st.days.map(x=>`<tr><td>${x.d}</td><td>${x.plays.toLocaleString()}</td><td>${x.players.toLocaleString()}</td></tr>`).join('');
   return new Response(`<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>集計｜10秒暴走ろくろ</title>
 <style>body{margin:0;padding:16px;background:#ebe5d9;color:#1b1814;font-family:"Hiragino Mincho ProN","Yu Mincho",serif}h1{font-size:20px;margin:0 0 12px}
 .t{display:flex;gap:24px;margin-bottom:16px}.t b{display:block;font-size:28px}table{border-collapse:collapse;width:100%;max-width:480px;font-variant-numeric:tabular-nums}
-td,th{border-bottom:1px solid rgba(27,24,20,.16);padding:6px 4px;text-align:right}td:first-child,th:first-child{text-align:left}small{color:#6e6458}</style></head><body>
-<h1>10秒暴走ろくろ 集計</h1>
+td,th{border-bottom:1px solid rgba(27,24,20,.16);padding:6px 4px;text-align:right}td:first-child,th:first-child{text-align:left}small{color:#6e6458}
+.m{margin:0 0 12px;color:#1b1814}.m.ng{color:#c8371a}
+form{display:flex;gap:8px;margin-top:28px;max-width:480px}form input{flex:1;min-width:0;font:inherit;padding:8px;border:1px solid rgba(27,24,20,.3);background:#f6f1e7;border-radius:0}
+form button{font:inherit;font-weight:700;padding:8px 14px;border:0;background:#1b1814;color:#f6f1e7;border-radius:0;cursor:pointer}</style></head><body>
+<h1>10秒暴走ろくろ 集計</h1>${msg}
 <div class="t"><div>プレイ回数<b>${st.plays.toLocaleString()}</b></div><div>プレイした人<b>${st.players.toLocaleString()}</b></div></div>
 <table><tr><th>日付（日本時間）</th><th>回数</th><th>新しい人</th></tr>${tr}</table>
 <p><small>人数は「その端末で初めて遊んだ回」を数えたもの。ブラウザの記録を消すと、同じ人でも新しい人として数え直されます。</small></p>
+<form method="post" action="/stats/reset" onsubmit="return confirm('プレイ回数と人数を0に戻します（番付は消えません）。よろしいですか？')">
+<input type="password" name="k" placeholder="合言葉" autocomplete="current-password" required><button>集計をリセット</button></form>
 </body></html>`,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store'}});
 }
 export default {
@@ -129,7 +164,8 @@ export default {
     const p=new URL(req.url).pathname;
     if(p==='/api/rank')return rank(req,env);
     if(p==='/api/play')return play(req,env);
-    if(p==='/stats')return statsPage(env);
+    if(p==='/stats')return statsPage(req,env);
+    if(p==='/stats/reset')return statsReset(req,env);
     return env.ASSETS.fetch(req);
   }
 };
