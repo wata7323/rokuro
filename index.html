@@ -258,7 +258,7 @@ body.sing{--shippo:none;--paper:#121110;--ink:#f1ece4;--sub:#a49b8f;--line:rgba(
   <!-- 版（セマンティック バージョニング 主.副.修正）：変更するたびに上げる。
        修正・小さな調整 → 3つ目（1.0.0→1.0.1）／新しい機能 → 2つ目（1.0.1→1.1.0）／遊び方が大きく変わる → 1つ目（1.1.0→2.0.0）
        アップロード後、スマホに新しい版が届いたかをここで確かめる -->
-  <div id="hver"><div class="hv1">作者 わたわたするわた<i></i>ver. 1.5.2</div><a id="hx" href="https://x.com/watawatasuruwat" target="_blank" rel="noopener">X:@watawatasuruwat</a></div>
+  <div id="hver"><div class="hv1">作者 わたわたするわた<i></i>ver. 1.6.1</div><a id="hx" href="https://x.com/watawatasuruwat" target="_blank" rel="noopener">X:@watawatasuruwat</a></div>
 </div>
 <div id="toast"></div>
 <script>
@@ -1275,14 +1275,31 @@ function shapeEval(m){
 // 共鳴は「良い形を保った時間」で溜まる。品質qが高いほど速く溜まり、qが低すぎると抜けていく。崩壊で失う
 const RES_UP=0.25,RES_Q0=0.35,RES_Q1=0.75;
 function resonance(sh){return sh?sh.q:0;}
+// 器種ごとの傾向（ver.1.6.0）。平皿・大皿は取りやすさも上限も変えず、ほかの器種は「難しいぶん上に届く」ようにする
+// QREF：その器種で理想とみなす品質。共鳴・特異点圏・特異点の額は、品質をこれで割った値で測る（低いほど甘い）
+// RESF：共鳴の溜まる速さの倍率。背の高い器は形づくりに時間がかかるので、そのぶん速く鳴る
+// PREM：特異点の額への上乗せ（器種の格）
+// ZM：圏内に居続けたぶんの伸びの倍率（ver.1.6.1）。難しい器は入った時点で高いが、居座りの伸びは小さい。
+//   極めた人の上限を平皿の1.4倍ほどに収め、総合の番付が一つの器種だけにならないようにする（1.5.2 より安くなる場面は作らない）
+// （朝顔は大皿を作る途中に必ず通るので、共鳴は上乗せしない。大皿の取りやすさを変えないため）
+const SHAPE_QREF={flat:1,wide:1,ridge:1,twist:1,thin:0.95,tall:0.93,flare:0.92,closed:1,bulge:0.9,slender:0.9,waist:0.82};
+const SHAPE_RESF={flat:1,wide:1,ridge:1,twist:1,thin:1,tall:1.8,flare:1,closed:1,bulge:1.6,slender:2.6,waist:2.2};
+const SHAPE_PREM={flat:0,wide:0.02,ridge:0.12,twist:0.1,thin:0.12,tall:0.14,flare:0.14,closed:0.36,bulge:0.18,slender:0.24,waist:0.23};
+const SHAPE_ZM={flat:1,wide:1,ridge:1,twist:1,thin:0.74,tall:0.66,flare:0.66,closed:0.63,bulge:0.6,slender:0.42,waist:0.46};
+function shapeKey(s){return s.shape?s.shape.top[0].d.k:'';}
+function qEff(s){return clamp(s.q/(SHAPE_QREF[shapeKey(s)]||1),0,1);}
 function chargeRes(s,dt){
-  if(s.collapsed){s.res=Math.max(0,s.res-dt*1.5);return;}
+  if(s.collapsed){s.res=Math.max(0,s.res-dt*1.5);s.resB=0;return;}
+  // ふつうの共鳴は素の品質で溜める（平皿を作る途中で薄手などを通っても、溜まり方は変わらない）
   const g=(s.q-RES_Q0)/(RES_Q1-RES_Q0);
   s.res=clamp(s.res+dt*(g>0?RES_UP*Math.min(1.25,g):0.5*Math.max(-1,g)),0,1);
+  // 器種による共鳴の上乗せは別に持つ。上乗せのない器種（平皿・大皿など）になると すぐ抜ける（途中だけ背の高い器で回転を稼ぐ抜け道をふさぐ）
+  const f=SHAPE_RESF[shapeKey(s)]||1,gb=(qEff(s)-RES_Q0)/(RES_Q1-RES_Q0);
+  s.resB=(f>1&&gb>0)?clamp((s.resB||0)+dt*RES_UP*Math.min(1.25,gb)*f-dt*RES_UP*Math.min(1.25,Math.max(0,g)),0,1):Math.max(0,(s.resB||0)-dt*1.5);
 }
 // 特異点圏：品質（形×仕上げ）0.8以上・95,000RPM以上・崩壊していない
 const ZONE_Q=0.8;
-function inZone(s){return !s.collapsed&&s.shape&&s.q>=ZONE_Q&&s.rpm>=95000;}
+function inZone(s){return !s.collapsed&&s.shape&&qEff(s)>=ZONE_Q&&s.rpm>=95000;}
 
 /* =========================================================
    入力 → 粘土変形（指の位置＝輪郭）
@@ -1462,7 +1479,8 @@ const SING_MIN=850000000,SING_BASE=9999999999;
 function singScore(s){
   const sh=s.shape||shapeEval(s.m||metrics(s));
   // 圏内に居続けた時間ぶん青天井に伸びる
-  return Math.max(0,0.45*clamp(s.q,0,1)+0.35*clamp((s.q-ZONE_Q)/(1-ZONE_Q),0,1)+(s.bonus?0.2:0)+0.07*s.zoneTime);
+  const qe=qEff(s);
+  return Math.max(0,0.45*qe+0.35*clamp((qe-ZONE_Q)/(1-ZONE_Q),0,1)+(s.bonus?0.2:0)+0.07*s.zoneTime*(SHAPE_ZM[shapeKey(s)]||1)+(SHAPE_PREM[shapeKey(s)]||0));
 }
 function singPrice(sp,prog){
   return SING_MIN*Math.pow(SING_BASE/SING_MIN,(prog===undefined?1:prog)*Math.pow(sp,1.2));
@@ -1524,7 +1542,7 @@ function firePrice(s){
 function simStep(dt,inputs){
   const s=S;
   chargeRes(s,dt);
-  const tr=DBG.rpm||RPM_MIN*Math.pow(RPM_MAX/RPM_MIN,Math.pow(s.res,1.3));
+  const tr=DBG.rpm||RPM_MIN*Math.pow(RPM_MAX/RPM_MIN,Math.pow(Math.min(1,s.res+(s.resB||0)),1.3));
   let lr=Math.log(s.rpm);const lt=Math.log(tr);
   lr+=(lt-lr)*(1-Math.exp(-dt*(lt>lr?1.6:4)));
   s.rpm=Math.exp(lr);
@@ -2791,11 +2809,17 @@ document.addEventListener('gesturestart',e=>e.preventDefault());
 const TAS={on:false,name:'',plan:null,t:0,log:[],nextLog:0,result:null,inputs:[]};
 // 超人TASの制御則（ブラウザにもそのまま移植する）
 // P: {rc:[9点の目標半径], H:目標高さ, T:目標肉厚, amp,fq:うねり, eps:許容誤差, hold:0/1 誤差内での添え方, t0:成形開始}
-function tasProfile(P,u){
-  const n=P.rc.length-1,x=u*n,i=Math.min(n-1,Math.floor(x)),f=x-i;
-  const p0=P.rc[Math.max(0,i-1)],p1=P.rc[i],p2=P.rc[i+1],p3=P.rc[Math.min(n,i+2)];
-  // Catmull-Rom
-  const v=0.5*((2*p1)+(-p0+p2)*f+(2*p0-5*p1+4*p2-p3)*f*f+(-p0+3*p1-3*p2+p3)*f*f*f);
+// v2（ver.1.6.0）：目標を「序盤の形 rc・高さ H」から「終盤の形 rc2・高さ H2」へ、時刻 tm を中心に幅 tw で移す。
+// 回転が上がるにつれ遠心力で形が変わるのを、目標側で先回りして吸収する（rc2 がなければ v1 と同じ動き）
+function tasMix(P,t){return P.rc2?1/(1+Math.exp(-(t-(P.tm||5))/Math.max(0.1,P.tw||1))):0;}
+function tasProfile(P,u,t){
+  const prof=rc=>{
+    const n=rc.length-1,x=u*n,i=Math.min(n-1,Math.floor(x)),f=x-i;
+    const p0=rc[Math.max(0,i-1)],p1=rc[i],p2=rc[i+1],p3=rc[Math.min(n,i+2)];
+    // Catmull-Rom
+    return 0.5*((2*p1)+(-p0+p2)*f+(2*p0-5*p1+4*p2-p3)*f*f+(-p0+3*p1-3*p2+p3)*f*f*f);
+  };
+  const a=prof(P.rc),w=tasMix(P,t||0),v=w>0?a+(prof(P.rc2)-a)*w:a;
   return v+(P.amp||0)*Math.sin(u*Math.PI*2*(P.fq||4));
 }
 function tasControl(s,P,t,dt,K){
@@ -2807,11 +2831,12 @@ function tasControl(s,P,t,dt,K){
   const rate=9+12*s.rpmF,a=1-Math.exp(-rate*dt);
   const sig=Math.max(1.5,8/lh),gap=Math.ceil(sig*2.6);
   const err=new Float32Array(N);
-  for(let k=0;k<N;k++){const tg=Math.max(K.RMIN,tasProfile(P,k/(N-1)));err[k]=tg-s.r[k];}
+  for(let k=0;k<N;k++){const tg=Math.max(K.RMIN,tasProfile(P,k/(N-1),t));err[k]=tg-s.r[k];}
   // 指1：背が足りず壁が厚いうちは引き上げ（必要な分だけ正確に薄くする）
   let fingers=P.nf||2;
   // 高さの限界(450mm)には近づかない
-  const HT=Math.min(P.H,405);
+  const Hg=P.H2!==undefined?P.H+(P.H2-P.H)*tasMix(P,t):P.H;
+  const HT=Math.min(Hg,P.rc2?425:405);
   if(Ht<HT-2&&avgT>Math.max(K.TMIN,P.T)*1.02){
     const need=Math.max(0.8,Math.max(K.TMIN,P.T)/avgT);
     const ratioH=Math.min(1,(HT-Ht)/40);
@@ -2846,7 +2871,7 @@ function tasControl(s,P,t,dt,K){
       break;
     }
     used.push(best);
-    const tgt=Math.max(K.RMIN,tasProfile(P,best/(N-1)));
+    const tgt=Math.max(K.RMIN,tasProfile(P,best/(N-1),t));
     // 1フレームの変形量を芯が外れない速さ（55mm/s）以内に収める
     const lim=55*dt*Math.max(1,(1-s.rpmF)*8);
     const step=Math.max(-lim,Math.min(lim,(tgt-s.r[best])*(P.gain||1)));
@@ -2855,7 +2880,7 @@ function tasControl(s,P,t,dt,K){
   }
   return out;
 }
-/*TAS-PLANS*/const TAS_PLANS={"any":{"label":"最高値","P":{"rc":[16.71,22.53,44.81,45.72,42.86,47.46,48.91,54.4,69.55],"H":344.75,"T":0.2,"amp":4.72,"fq":1,"eps":0.9,"hold":0,"t0":0,"tr":11.1,"sh":2.17,"nf":2,"gain":1}},"tall":{"label":"塔","P":{"rc":[14.79,14.59,30.96,42.92,35.98,29.51,27.07,39.87,36.51],"H":301.2,"T":2.69,"amp":0,"fq":1,"eps":0.05,"hold":1,"t0":0.67,"tr":13.71,"sh":0,"nf":2,"gain":1}},"wide":{"label":"大皿","P":{"rc":[23.65,18.1,34.54,40.34,45.58,43.57,47.49,53.13,53.03],"H":314.62,"T":0.25,"amp":0.25,"fq":1,"eps":0.05,"hold":1,"t0":0,"tr":7.3,"sh":0.11,"nf":2,"gain":1}},"thin":{"label":"薄手","P":{"rc":[92.06,92.81,71.39,75.16,62.16,53.8,41.88,20.79,13.22],"H":383.04,"T":0.48,"amp":0.2,"fq":1,"eps":0.05,"hold":0,"t0":0,"tr":9.9,"sh":14.16,"nf":2,"gain":1}},"waist":{"label":"徳利","P":{"rc":[9.89,35.48,45.42,31.4,17.47,2,27.61,34.5,44.5],"H":238.31,"T":0.75,"amp":0,"fq":1.98,"eps":1.74,"hold":1,"t0":3.02,"tr":10.23,"sh":0,"nf":2,"gain":1}},"flare":{"label":"朝顔","P":{"rc":[10.57,26.98,44.76,52.97,50.24,48.96,54.16,60.96,67.95],"H":298.07,"T":0.42,"amp":0,"fq":7.33,"eps":0.8,"hold":1,"t0":1.47,"tr":7.78,"sh":0,"nf":2,"gain":1}},"closed":{"label":"壺","P":{"rc":[68.86,70.16,81.88,98.41,82.95,60.88,43.02,21.68,3.99],"H":216.83,"T":3.62,"amp":0,"fq":5.37,"eps":0.74,"hold":1,"t0":0.11,"tr":7.57,"sh":0,"nf":2,"gain":1}},"bulge":{"label":"甕","P":{"rc":[21.62,39.34,80.92,92.94,75.05,60.75,55.96,43.51,6.57],"H":153.85,"T":2.27,"amp":1.11,"fq":2.36,"eps":0.39,"hold":0,"t0":2.13,"tr":7.31,"sh":0,"nf":2,"gain":1}},"flat":{"label":"平皿","P":{"rc":[106.45,87.97,80.17,80.13,84.55,88.22,123.5,87.58,87.44],"H":40,"T":0.49,"amp":0,"fq":7.91,"eps":0.37,"hold":0,"t0":0,"tr":9.46,"sh":8.87,"nf":2,"gain":1}},"slender":{"label":"一輪挿し","P":{"rc":[9.57,8.85,7.93,7.79,8.23,7.83,5.82,2,2],"H":312.86,"T":9.21,"amp":0,"fq":2.51,"eps":0.05,"hold":0,"t0":0,"tr":15.07,"sh":2.14,"nf":2,"gain":1}},"ridge":{"label":"段花入","P":{"rc":[57.53,46.1,37.57,66.53,52.18,61.42,52.48,98.73,72.64],"H":211.78,"T":2.44,"amp":24,"fq":6.02,"eps":0.43,"hold":1,"t0":0.12,"tr":12.38,"sh":0,"nf":2,"gain":1}},"twist":{"label":"呪物","P":{"rc":[35.49,42.1,30.41,24.84,27.13,19.38,18.61,23.55,36.79],"H":229.36,"T":0.93,"amp":4.14,"fq":7.72,"eps":0.36,"hold":0,"t0":0.33,"tr":8.08,"sh":20.78,"nf":2,"gain":1}}};/*TAS-PLANS-END*/
+/*TAS-PLANS*/const TAS_PLANS={"any":{"label":"最高値","P":{"rc":[13.96,21.41,53.03,61.23,32.17,3.1,34.27,50.26,64.39],"rc2":[23.14,24.37,47.34,29.66,15.48,2,11.79,30.25,49.47],"H":203.03,"H2":214.42,"T":0.41,"amp":0,"fq":5.24,"eps":0.51,"hold":0,"t0":0,"tr":12.62,"sh":17.76,"tm":0.9,"tw":0.1,"nf":2,"gain":1}},"tall":{"label":"塔","P":{"rc":[9.85,18.99,30.29,52.14,29.51,17.28,7.56,41.1,51.85],"rc2":[6.63,2,26.97,27.2,38.87,33.98,45.16,41.75,68.16],"H":193.27,"H2":40,"T":1.07,"amp":1.7,"fq":2.43,"eps":0.05,"hold":1,"t0":0,"tr":18.36,"sh":20.86,"tm":6.81,"tw":1.05,"nf":2,"gain":1}},"wide":{"label":"大皿","P":{"rc":[20.83,13.18,23.48,34.18,46.38,46.35,42.58,48.47,54.2],"rc2":[25.64,20.97,20.19,18.33,23.72,38.14,35.34,54.72,43.25],"H":444.58,"H2":248.86,"T":0.24,"amp":1,"fq":3.26,"eps":0.05,"hold":0,"t0":0,"tr":7.35,"sh":0.14,"tm":8,"tw":4,"nf":2,"gain":1}},"thin":{"label":"薄手","P":{"rc":[18.39,26.65,41.09,37.41,29.09,42.08,34.78,44.12,43.13],"rc2":[2,14.12,35.16,42.09,39.65,41.25,46.48,49.51,72.24],"H":386.09,"H2":150.28,"T":0.2,"amp":0,"fq":1,"eps":0.48,"hold":1,"t0":0,"tr":15.49,"sh":0,"tm":5.89,"tw":0.1,"nf":2,"gain":1}},"waist":{"label":"徳利","P":{"rc":[17.51,16.64,49.88,62.8,27.96,2,36.14,58.6,64.57],"rc2":[17.52,25.59,36.17,50.27,8.55,2,24.41,31.18,50.14],"H":176.49,"H2":189.02,"T":0.2,"amp":0,"fq":5.01,"eps":2.08,"hold":0,"t0":0,"tr":11.52,"sh":0,"tm":1.37,"tw":0.1,"nf":2,"gain":1}},"flare":{"label":"朝顔","P":{"rc":[12.07,11.84,47.1,83.88,64.53,54.22,58.08,41.53,40.12],"rc2":[82.71,13.74,14.24,30.77,38.61,44.34,45.95,58.29,63.15],"H":319.9,"H2":40,"T":0.2,"amp":0,"fq":1,"eps":0.99,"hold":1,"t0":0.01,"tr":7.74,"sh":0,"tm":7.54,"tw":1.26,"nf":2,"gain":1}},"closed":{"label":"壺","P":{"rc":[59.33,78.31,95.83,138.82,109.23,61.12,45.98,24.04,25.92],"rc2":[76.97,80.13,100.67,114.73,49.32,45.18,28.85,17.14,2],"H":299.51,"H2":254.6,"T":0.37,"amp":0,"fq":7.96,"eps":2.75,"hold":1,"t0":0,"tr":14.66,"sh":0,"tm":4.11,"tw":3,"nf":2,"gain":1}},"bulge":{"label":"甕","P":{"rc":[11.32,14.15,46.81,72.76,67.5,51.43,25.95,28.93,7.37],"rc2":[12.82,35.04,75.36,96.03,87.57,84.14,87.06,27.73,2],"H":224.59,"H2":445,"T":0.2,"amp":0,"fq":1,"eps":0.3,"hold":0,"t0":0,"tr":8.35,"sh":0,"tm":6.18,"tw":1.86,"nf":2,"gain":1}},"flat":{"label":"平皿","P":{"rc":[115.53,98.98,89.47,87.87,95.82,112.96,150,114.48,74.88],"rc2":[76.95,78.58,79.7,82.75,79.06,79.18,87.6,104.11,105.46],"H":324.33,"H2":40,"T":7.77,"amp":0,"fq":8,"eps":1.21,"hold":0,"t0":0,"tr":8.96,"sh":0.27,"tm":7.66,"tw":1.22,"nf":2,"gain":1}},"slender":{"label":"一輪挿し","P":{"rc":[19.86,23.95,33.87,17.73,2,10.07,2,35.48,8.11],"rc2":[14.65,10.54,9.46,7.27,2,2,2,2,2],"H":400.11,"H2":346.81,"T":7.56,"amp":0,"fq":1.93,"eps":0.05,"hold":0,"t0":0,"tr":14.34,"sh":2.98,"tm":4.23,"tw":0.87,"nf":2,"gain":1}},"ridge":{"label":"段花入","P":{"rc":[31.39,87.01,54.45,56.61,77.33,71.42,88.13,109.57,80.65],"rc2":[31.3,56.93,48.15,93.24,45.93,62.31,90,99.37,120.07],"H":255.32,"H2":148.01,"T":1.11,"amp":41,"fq":5.71,"eps":0.14,"hold":0,"t0":0,"tr":12.42,"sh":0,"tm":3.56,"tw":2.41,"nf":2,"gain":1}},"twist":{"label":"呪物","P":{"rc":[42.79,43.31,42.44,46.83,40.82,16.24,2,33.72,45.44],"rc2":[63.22,73.13,19.06,41.87,10.76,35.54,2,2,33.82],"H":275.03,"H2":356.4,"T":0.36,"amp":0,"fq":5.44,"eps":0.2,"hold":1,"t0":0,"tr":7.97,"sh":33.47,"tm":10,"tw":0.58,"nf":2,"gain":1}}};/*TAS-PLANS-END*/
 function tasStart(name){
   retry();
   DBG.tasLast=name;DBG.used=true;
@@ -3036,15 +3061,15 @@ function dbgUpdate(){
     '8秒判定 '+(s.check8?(s.bonus?'成功':'不成立'):'未実施'),
     'time    '+(s.started?s.elapsed.toFixed(2):'未開始')+(DBG.freeze?' [停止]':''),
     'rpm     '+Math.round(s.rpm)+(DBG.rpm?' [固定 '+DBG.rpm+']':''),
-    '共鳴蓄積'+s.res.toFixed(3)+'  (1で最高回転)',
-    '品質q   '+s.q.toFixed(3)+'  形 '+(s.shape?s.shape.score.toFixed(2):'-')+' 仕上 '+(s.shape?s.shape.craft.toFixed(2):'-'),
+    '共鳴蓄積'+s.res.toFixed(3)+' +器種'+(s.resB||0).toFixed(3)+'  (1で最高回転)',
+    '品質q   '+s.q.toFixed(3)+'  器種換算 '+qEff(s).toFixed(3)+'  形 '+(s.shape?s.shape.score.toFixed(2):'-')+' 仕上 '+(s.shape?s.shape.craft.toFixed(2):'-'),
     '指標    '+(s.shape?s.shape.all.map(t=>t.d.n+(t.v*100|0)).join(' '):''),
     '価格    ¥'+fmt(s.priceTarget),
     '高さ    '+m.Htot.toFixed(1)+'mm',
     '最大径  '+(m.maxR*2).toFixed(1)+'mm',
     '最薄    '+(m.minT===null?'-':m.minT.toFixed(2)+'mm')+'  平均 '+(m.avgT===null?'-':m.avgT.toFixed(2)),
     '軸ブレ  '+(m.wob*100).toFixed(1)+'%',
-    '特異点  質'+ok(s.q>=ZONE_Q)+' 回'+ok(s.rpm>=95000)+' 時'+ok(DBG.ignoreTime||s.elapsed>=PLAY_TIME-1)+' 崩'+ok(!s.collapsed),
+    '特異点  質'+ok(qEff(s)>=ZONE_Q)+' 回'+ok(s.rpm>=95000)+' 時'+ok(DBG.ignoreTime||s.elapsed>=PLAY_TIME-1)+' 崩'+ok(!s.collapsed),
     '設定    '+(DBG.noCollapse?'崩壊無効 ':'')+(DBG.ignoreTime?'時間条件無視':''),
     ...(TAS.log.length?['--- TAS ---'].concat(TAS.log.slice(-4)):[])
   ];
